@@ -20,6 +20,21 @@ namespace ZoneHydrantEditor.Helpers
             _connection.Open();
         }
 
+        private static int GetStableMarkerId(string? ewsId)
+        {
+            if (string.IsNullOrEmpty(ewsId)) return 0;
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (char c in ewsId)
+                {
+                    hash ^= c;
+                    hash *= 16777619;
+                }
+                return (int)(hash & 0x7FFFFFFF);
+            }
+        }
+
         public void Dispose()
         {
             if (_connection.State != ConnectionState.Closed)
@@ -92,7 +107,7 @@ namespace ZoneHydrantEditor.Helpers
 
                 return new MarkerInfo
                 {
-                    Id = int.TryParse(e.EwsId, out var id) ? id : 0,
+                    Id = GetStableMarkerId(e.EwsId),
                     Latitude = (double)(e.EwsGeoCoordX ?? 0),
                     Longitude = (double)(e.EwsGeoCoordY ?? 0),
                     GidrantNumber = e.EwsNumber ?? "",

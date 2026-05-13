@@ -555,6 +555,45 @@ namespace ZoneHydrantEditor.Helpers
             }
         }
 
+        public void SyncMarkers(List<MarkerInfo> markers)
+        {
+            try
+            {
+                OpenHydrantsConnection();
+
+                using var transaction = _hydrantsConnection.BeginTransaction();
+
+                new SQLiteCommand("DELETE FROM Markers", _hydrantsConnection, transaction).ExecuteNonQuery();
+
+                foreach (var marker in markers)
+                {
+                    var cmd = new SQLiteCommand(
+                        @"INSERT OR REPLACE INTO Markers (Id, Latitude, Longitude, GidrantNumber, GidrantTruba,
+                                               GidrantAdres, CompanyName, Status, BreakReason)
+                          VALUES (@id, @lat, @lng, @num, @truba, @adres, @comp, @status, @breakReason)",
+                        _hydrantsConnection, transaction);
+                    cmd.Parameters.AddWithValue("@id", marker.Id);
+                    cmd.Parameters.AddWithValue("@lat", marker.Latitude);
+                    cmd.Parameters.AddWithValue("@lng", marker.Longitude);
+                    cmd.Parameters.AddWithValue("@num", marker.GidrantNumber ?? "");
+                    cmd.Parameters.AddWithValue("@truba", marker.GidrantTruba ?? "");
+                    cmd.Parameters.AddWithValue("@adres", marker.GidrantAdres ?? "");
+                    cmd.Parameters.AddWithValue("@comp", marker.CompanyName ?? "");
+                    cmd.Parameters.AddWithValue("@status", marker.Status ?? "Непроверенный");
+                    cmd.Parameters.AddWithValue("@breakReason", marker.BreakReason ?? "");
+                    cmd.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+
+                _cacheManager.InvalidateMarkers();
+            }
+            finally
+            {
+                CloseHydrantsConnection();
+            }
+        }
+
         public List<MarkerInfo> GetAllMarkers()
         {
             return _cacheManager.GetAllMarkers(() =>

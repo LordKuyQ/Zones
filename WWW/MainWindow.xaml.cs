@@ -88,6 +88,9 @@ namespace ZoneHydrantEditor
                 LoadAllZonesInEditor();
                 HighlightCurrentZoneInEditor();
             }
+            var ewsMarkers = _ewsService.GetAllHydrantsAsMarkers();
+            _dbService.SyncMarkers(ewsMarkers);
+            UpdateMarkersZoneInfo();
             LoadHydrantsFromDatabase();
             LoadBindingsFromDatabase();
             DrawAllZonesOnHydrantMap();
@@ -1010,7 +1013,7 @@ namespace ZoneHydrantEditor
         #region ЗАГРУЗКА ДАННЫХ ДЛЯ КАРТЫ ГИДРАНТОВ (ВКЛ2)
         private void LoadHydrantsFromDatabase()
         {
-            var markers = _ewsService.GetAllHydrantsAsMarkers();
+            var markers = _dbService.GetAllMarkers();
             foreach (var marker in markers)
             {
                 AddOrUpdateHydrantMarker(marker.Id, marker.Latitude, marker.Longitude, marker.GidrantNumber, marker.GidrantTruba, marker.Status);
@@ -1571,7 +1574,9 @@ namespace ZoneHydrantEditor
                             Owner = progressWindow,
                             Background = Brushes.White
                         };
-                        var gridPageControl = new GridPageControl();
+                        if (!MBTilesProvider.Instance.IsLoaded)
+                            MBTilesProvider.Instance.LoadMBTilesFile("NewLoadMap.mbtiles");
+                        var gridPageControl = new GridPageControl(isExportMode: true);
                         for (int i = 0; i < pageCells.Count; i++)
                             gridPageControl.AddCell(pageCells[i], allBindingsCache, i);
 
@@ -1658,6 +1663,8 @@ namespace ZoneHydrantEditor
                 LoadZonesToSelector();
                 LoadAllZonesInEditor();
                 DrawAllZonesOnHydrantMap();
+                var ewsMarkers = _ewsService.GetAllHydrantsAsMarkers();
+                _dbService.SyncMarkers(ewsMarkers);
                 LoadHydrantsFromDatabase();
                 LoadBindingsFromDatabase();
                 UpdateMarkersZoneInfo();

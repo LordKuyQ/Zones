@@ -89,7 +89,6 @@ namespace ZoneHydrantEditor
 
             var miniMap = new GMapControl
             {
-                MapProvider = MBTilesProvider.Instance,
                 Width = CellWidth - 30,
                 Height = CellHeight - 55,
                 CanDragMap = false,
@@ -100,15 +99,17 @@ namespace ZoneHydrantEditor
                 Margin = new Thickness(5, 5, 5, 20),
                 DisableAltForSelection = true,
                 CacheMode = _isExportMode ? new BitmapCache() : null,
-                Position = new PointLatLng(cell.Latitude, cell.Longitude),
-                Zoom = 16
             };
-
-            miniMap.Markers.Add(CreateMiniMapMarker(cell));
-
-            if (bindingCache.TryGetValue(cell.HydrantId, out var bindings))
-                foreach (var binding in bindings)
-                    miniMap.Markers.Add(CreateMiniMapBinding(binding));
+            miniMap.Loaded += (s, e) =>
+            {
+                miniMap.MapProvider = MBTilesProvider.Instance;
+                miniMap.Position = new PointLatLng(cell.Latitude, cell.Longitude);
+                miniMap.Zoom = 16;
+                miniMap.Markers.Add(CreateMiniMapMarker(cell));
+                if (bindingCache.TryGetValue(cell.HydrantId, out var bindings))
+                    foreach (var binding in bindings)
+                        miniMap.Markers.Add(CreateMiniMapBinding(binding));
+            };
 
             var overlay = CreateOverlayCanvas(cell, bindingCache);
             var container = new Grid();
