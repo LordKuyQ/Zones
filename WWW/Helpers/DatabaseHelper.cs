@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using WpfApp5.Models;
+using TestDbApp.Models;
 using ZoneHydrantEditor.Models;
 
 namespace ZoneHydrantEditor.Helpers
@@ -563,12 +563,23 @@ namespace ZoneHydrantEditor.Helpers
 
                 using var transaction = _hydrantsConnection.BeginTransaction();
 
-                new SQLiteCommand("DELETE FROM Markers", _hydrantsConnection, transaction).ExecuteNonQuery();
+                var existingIds = new HashSet<int>();
+                using (var cmd = new SQLiteCommand("SELECT Id FROM Markers", _hydrantsConnection, transaction))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                        existingIds.Add(reader.GetInt32(0));
+                }
 
+                var currentIds = new HashSet<int>();
                 foreach (var marker in markers)
                 {
+                    currentIds.Add(marker.Id);
+                    if (existingIds.Contains(marker.Id))
+                        continue;
+
                     var cmd = new SQLiteCommand(
-                        @"INSERT OR REPLACE INTO Markers (Id, Latitude, Longitude, GidrantNumber, GidrantTruba,
+                        @"INSERT INTO Markers (Id, Latitude, Longitude, GidrantNumber, GidrantTruba,
                                                GidrantAdres, CompanyName, Status, BreakReason)
                           VALUES (@id, @lat, @lng, @num, @truba, @adres, @comp, @status, @breakReason)",
                         _hydrantsConnection, transaction);
@@ -1104,9 +1115,9 @@ namespace ZoneHydrantEditor.Helpers
 
         #region Работа с принадлежностями
 
-        public List<CompanyInfo> GetAllCompanies()
+        public List<_05Organization> GetAllCompanies()
         {
-            var companies = new List<CompanyInfo>();
+            var companies = new List<_05Organization>();
 
             try
             {
@@ -1119,10 +1130,10 @@ namespace ZoneHydrantEditor.Helpers
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                    companies.Add(new CompanyInfo
+                    companies.Add(new _05Organization
                     {
-                        Id = reader.GetInt32(0),
-                        Name = reader.GetString(1)
+                        OrganizationId = reader.GetInt32(0).ToString(),
+                        OrganizationNameShort = reader.GetString(1)
                     });
                 }
             }

@@ -1,8 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using WpfApp5.Models;
+using TestDbApp.Models;
 using ZoneHydrantEditor.Helpers;
-using ZoneHydrantEditor.Models;
 
 namespace ZoneHydrantEditor
 {
@@ -20,7 +19,7 @@ namespace ZoneHydrantEditor
         private bool _isAddressResolving = false;
         private readonly GeocodingHelper _geocodingService;
         private readonly DatabaseService _dbService;
-        private List<CompanyInfo> _companies;
+        private List<_05Organization> _companies;
 
         public AddMarkerWindow(DatabaseService dbService = null)
         {
@@ -38,12 +37,12 @@ namespace ZoneHydrantEditor
                 _companies = _dbService.GetAllCompanies();
                 CompanyComboBox.Items.Clear();
 
-                foreach (var company in _companies)
+                foreach (var org in _companies)
                 {
                     CompanyComboBox.Items.Add(new ComboBoxItem
                     {
-                        Content = company.Name,
-                        Tag = company.Id
+                        Content = org.OrganizationNameShort ?? "",
+                        Tag = org.OrganizationId ?? "0"
                     });
                 }
 
