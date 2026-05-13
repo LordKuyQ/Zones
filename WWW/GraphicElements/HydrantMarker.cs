@@ -4,37 +4,37 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using GMap.NET;
 using GMap.NET.WindowsPresentation;
+using TestDbApp.Models;
 using ZoneHydrantEditor.Helpers;
-using ZoneHydrantEditor.Models;
 
 namespace ZoneHydrantEditor.GraphicElements
 {
     public static class HydrantMarker
     {
-        public static GMapMarker CreateMarker(MarkerInfo hydrant, int currentZoom)
+        public static GMapMarker CreateMarker(Ewss hydrant, int currentZoom)
         {
             double markerSize = MarkerScaling.GetMarkerSize(currentZoom);
             double strokeThickness = MarkerScaling.GetStrokeThickness(currentZoom);
             bool showText = MarkerScaling.ShouldShowText(currentZoom);
             double textScale = MarkerScaling.GetTextScale(currentZoom);
-            var (fillColor, strokeColor) = MarkerColorHelper.GetColorsForStatus(hydrant.Status);
-            var canvas = CreateMarkerCanvas(markerSize, strokeThickness, showText, textScale,fillColor, strokeColor, hydrant.GidrantNumber, hydrant.GidrantTruba);
-            var marker = new GMapMarker(new PointLatLng(hydrant.Latitude, hydrant.Longitude))
+            var (fillColor, strokeColor) = MarkerColorHelper.GetColorsForStatus(hydrant.StatusName);
+            var canvas = CreateMarkerCanvas(markerSize, strokeThickness, showText, textScale, fillColor, strokeColor, hydrant.DisplayNumber, hydrant.PipeInfo);
+            var marker = new GMapMarker(new PointLatLng(hydrant.LatitudeD, hydrant.LongitudeD))
             {
                 Shape = canvas,
                 Offset = new Point(-markerSize / 2, -markerSize / 2),
-                Tag = hydrant.Id
+                Tag = hydrant.MarkerId
             };
             return marker;
         }
 
-        public static GMapMarker CreateSimpleMarker(MarkerInfo hydrant)
+        public static GMapMarker CreateSimpleMarker(Ewss hydrant)
         {
             double markerSize = 18;
             double strokeThickness = 2;
-            var (fillColor, strokeColor) = MarkerColorHelper.GetColorsForStatus(hydrant.Status);
-            var canvas = CreateMarkerCanvas(markerSize, strokeThickness, true, 1.0,fillColor, strokeColor, hydrant.GidrantNumber, hydrant.GidrantTruba);
-            return new GMapMarker(new PointLatLng(hydrant.Latitude, hydrant.Longitude))
+            var (fillColor, strokeColor) = MarkerColorHelper.GetColorsForStatus(hydrant.StatusName);
+            var canvas = CreateMarkerCanvas(markerSize, strokeThickness, true, 1.0, fillColor, strokeColor, hydrant.DisplayNumber, hydrant.PipeInfo);
+            return new GMapMarker(new PointLatLng(hydrant.LatitudeD, hydrant.LongitudeD))
             {
                 Shape = canvas,
                 Offset = new Point(-markerSize / 2, -markerSize / 2)
@@ -88,18 +88,20 @@ namespace ZoneHydrantEditor.GraphicElements
             marker.Offset = new Point(-markerSize / 2, -markerSize / 2);
         }
 
-        private static Canvas CreateMarkerCanvas(double markerSize, double strokeThickness, bool showText,double textScale, Color fillColor, Color strokeColor, string number, string truba)
+        private static Canvas CreateMarkerCanvas(double markerSize, double strokeThickness, bool showText, double textScale, Color fillColor, Color strokeColor, string number, string truba)
         {
             var canvas = new Canvas
             {
                 IsHitTestVisible = true,
-                Width = 200,Height = 100
+                Width = 200,
+                Height = 100
             };
             Panel.SetZIndex(canvas, 1000);
             var halfEllipse = new Path
             {
                 Data = CreateHalfEllipseGeometry(markerSize),
-                Fill = new SolidColorBrush(fillColor),Stroke = Brushes.Transparent,
+                Fill = new SolidColorBrush(fillColor),
+                Stroke = Brushes.Transparent,
                 Tag = "hydrant_half"
             };
             Canvas.SetLeft(halfEllipse, 0);
@@ -107,8 +109,11 @@ namespace ZoneHydrantEditor.GraphicElements
             canvas.Children.Add(halfEllipse);
             var ellipseOutline = new Ellipse
             {
-                Width = markerSize,Height = markerSize,
-                Fill = Brushes.Transparent,Stroke = new SolidColorBrush(strokeColor),StrokeThickness = strokeThickness,
+                Width = markerSize,
+                Height = markerSize,
+                Fill = Brushes.Transparent,
+                Stroke = new SolidColorBrush(strokeColor),
+                StrokeThickness = strokeThickness,
                 IsHitTestVisible = true,
                 Tag = "hydrant_outline"
             };
@@ -117,9 +122,12 @@ namespace ZoneHydrantEditor.GraphicElements
             canvas.Children.Add(ellipseOutline);
             var line = new Line
             {
-                X1 = -markerSize * 0.2,Y1 = markerSize / 2,
-                X2 = markerSize * 1.2,Y2 = markerSize / 2,
-                Stroke = new SolidColorBrush(strokeColor),StrokeThickness = strokeThickness * 0.8,
+                X1 = -markerSize * 0.2,
+                Y1 = markerSize / 2,
+                X2 = markerSize * 1.2,
+                Y2 = markerSize / 2,
+                Stroke = new SolidColorBrush(strokeColor),
+                StrokeThickness = strokeThickness * 0.8,
                 Tag = "hydrant_line"
             };
             Canvas.SetLeft(line, 0);

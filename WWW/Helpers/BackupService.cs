@@ -4,16 +4,18 @@ using System.Linq;
 using System.Text.Json;
 using System.Windows;
 using Microsoft.Win32;
+using TestDbApp.Models;
 using ZoneHydrantEditor.Models;
 
 namespace ZoneHydrantEditor.Helpers
 {
     /// Сервис для создания и восстановления полных резервных копий всех данных
-    public class BackupService(DatabaseService dbService, string zonesDbFile, string hydrantsDbFile)
+    public class BackupService(DatabaseService dbService, EwsMapDataService ewsService, string zonesDbFile)
     {
         private readonly DatabaseService _dbService = dbService ?? throw new ArgumentNullException(nameof(dbService));
+        private readonly EwsMapDataService _ewsService = ewsService ?? throw new ArgumentNullException(nameof(ewsService));
         private readonly string _zonesDbFile = zonesDbFile;
-        private readonly string _hydrantsDbFile = hydrantsDbFile;
+
         public async Task<bool> CreateFullBackupAsync(Window owner = null)
         {
             try
@@ -64,8 +66,9 @@ namespace ZoneHydrantEditor.Helpers
                         backup.Zones.Add(zoneData);
                     }
 
-                    backup.Hydrants = _dbService.GetAllMarkers();
-                    backup.Bindings = _dbService.GetAllBindings();
+                    var allEwss = _ewsService.GetAllEwss();
+                    backup.Hydrants = allEwss.Select(EwssBackupData.FromEwss).ToList();
+
                     JsonSerializerOptions jsonSerializerOptions = new()
                     {
                         WriteIndented = true
@@ -74,7 +77,6 @@ namespace ZoneHydrantEditor.Helpers
                     string json = JsonSerializer.Serialize(backup, options);
                     File.WriteAllText(dialog.FileName, json);
                 });
-                // Показываем результат в UI потоке
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     ShowBackupResult(backup, dialog.FileName);
@@ -90,6 +92,7 @@ namespace ZoneHydrantEditor.Helpers
                 return false;
             }
         }
+
         public async Task<bool> RestoreFromBackupAsync(Window owner = null)
         {
             try
@@ -107,7 +110,6 @@ namespace ZoneHydrantEditor.Helpers
                 });
 
                 if (dialog == null || dialog.FileName == null) return false;
-                // Предупреждение о замене данных - выполняется в UI потоке
                 bool confirmed = false;
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
@@ -117,16 +119,13 @@ namespace ZoneHydrantEditor.Helpers
                 if (!confirmed) return false;
 
                 BackupPackage backup = null;
-                // Выполняем восстановление в фоновом потоке
                 await Task.Run(() =>
                 {
-                    // Чтение файла
                     string json = File.ReadAllText(dialog.FileName);
                     backup = JsonSerializer.Deserialize<BackupPackage>(json) ?? throw new Exception("Не удалось прочитать файл резервной копии");
                     ClearAllData();
                     RestoreZones(backup.Zones);
                     RestoreHydrants(backup.Hydrants);
-                    RestoreBindings(backup.Bindings);
                 });
                 _dbService.Cache.ClearAllCache();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -139,11 +138,12 @@ namespace ZoneHydrantEditor.Helpers
             {
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    MessageBox.Show($"❌ Ошибка при восстановлении из резервной копии:\n\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Ошибка при восстановлении из резервной копии:\n\n{ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
                 return false;
             }
         }
+
         #region Приватные вспомогательные методы
 
         private static bool ConfirmRestore()
@@ -163,17 +163,14 @@ namespace ZoneHydrantEditor.Helpers
                 new SQLiteCommand("DELETE FROM Zones", conn).ExecuteNonQuery();
                 new SQLiteCommand("DELETE FROM ZoneBackups", conn).ExecuteNonQuery();
                 new SQLiteCommand("DELETE FROM ZoneBackupPoints", conn).ExecuteNonQuery();
+                conn.Close();
+            }
 
-                conn.Close();
-            }
-            using (var conn = new SQLiteConnection($"Data Source={_hydrantsDbFile}"))
-            {
-                conn.Open();
-                new SQLiteCommand("DELETE FROM HydrantBindings", conn).ExecuteNonQuery();
-                new SQLiteCommand("DELETE FROM Markers", conn).ExecuteNonQuery();
-                conn.Close();
-            }
+            var allEwss = _ewsService.GetAllEwss();
+            foreach (var ewss in allEwss)
+                _ewsService.DeleteEwss(ewss.EwsId);
         }
+
         private void RestoreZones(List<ZoneBackupData> zones)
         {
             using var conn = new SQLiteConnection($"Data Source={_zonesDbFile}");
@@ -181,14 +178,12 @@ namespace ZoneHydrantEditor.Helpers
 
             foreach (var zoneData in zones)
             {
-                // Вставляем зону с сохранением оригинального ID
                 var insertZoneCmd = new SQLiteCommand(
                     "INSERT INTO Zones (Id, Name) VALUES (@id, @name)", conn);
                 insertZoneCmd.Parameters.AddWithValue("@id", zoneData.Id);
                 insertZoneCmd.Parameters.AddWithValue("@name", zoneData.Name);
                 insertZoneCmd.ExecuteNonQuery();
 
-                // Вставляем точки зоны
                 for (int i = 0; i < zoneData.Points.Count; i++)
                 {
                     var point = zoneData.Points[i];
@@ -205,65 +200,25 @@ namespace ZoneHydrantEditor.Helpers
 
             conn.Close();
         }
-        private void RestoreHydrants(List<MarkerInfo> hydrants)
+
+        private void RestoreHydrants(List<EwssBackupData> hydrants)
         {
-            using var conn = new SQLiteConnection($"Data Source={_hydrantsDbFile}");
-            conn.Open();
-
-            foreach (var hydrant in hydrants)
+            foreach (var h in hydrants)
             {
-                var insertHydrantCmd = new SQLiteCommand(
-                    @"INSERT INTO Markers (Id, Latitude, Longitude, GidrantNumber, GidrantTruba, 
-                          GidrantAdres, CompanyName, Status, BreakReason, ZoneId)
-                          VALUES (@id, @lat, @lng, @num, @truba, @adres, @comp, @status, @break, @zoneId)",
-                    conn);
-                insertHydrantCmd.Parameters.AddWithValue("@id", hydrant.Id);
-                insertHydrantCmd.Parameters.AddWithValue("@lat", hydrant.Latitude);
-                insertHydrantCmd.Parameters.AddWithValue("@lng", hydrant.Longitude);
-                insertHydrantCmd.Parameters.AddWithValue("@num", hydrant.GidrantNumber ?? "");
-                insertHydrantCmd.Parameters.AddWithValue("@truba", hydrant.GidrantTruba ?? "");
-                insertHydrantCmd.Parameters.AddWithValue("@adres", hydrant.GidrantAdres ?? "");
-                insertHydrantCmd.Parameters.AddWithValue("@comp", hydrant.CompanyName ?? "");
-                insertHydrantCmd.Parameters.AddWithValue("@status", hydrant.Status ?? "Непроверенный");
-                insertHydrantCmd.Parameters.AddWithValue("@break", hydrant.BreakReason ?? "");
-                insertHydrantCmd.Parameters.AddWithValue("@zoneId", hydrant.ZoneId.HasValue ? hydrant.ZoneId.Value : DBNull.Value);
-                insertHydrantCmd.ExecuteNonQuery();
+                var ewss = h.ToEwss();
+                _ewsService.InsertEwss(ewss);
             }
-
-            conn.Close();
-        }
-        private void RestoreBindings(List<BindingInfo> bindings)
-        {
-            using var conn = new SQLiteConnection($"Data Source={_hydrantsDbFile}");
-            conn.Open();
-
-            foreach (var binding in bindings)
-            {
-                var insertBindingCmd = new SQLiteCommand(
-                    @"INSERT INTO HydrantBindings (Id, Latitude, Longitude, DistanceToHydrantX, DistanceToHydrantY, HydrantId)
-                          VALUES (@id, @lat, @lng, @distX, @distY, @hydrantId)",
-                    conn);
-                insertBindingCmd.Parameters.AddWithValue("@id", binding.Id);
-                insertBindingCmd.Parameters.AddWithValue("@lat", binding.Latitude);
-                insertBindingCmd.Parameters.AddWithValue("@lng", binding.Longitude);
-                insertBindingCmd.Parameters.AddWithValue("@distX", binding.DistanceX);
-                insertBindingCmd.Parameters.AddWithValue("@distY", binding.DistanceY);
-                insertBindingCmd.Parameters.AddWithValue("@hydrantId", binding.HydrantId);
-                insertBindingCmd.ExecuteNonQuery();
-            }
-
-            conn.Close();
         }
 
-        private static void ShowBackupResult(BackupPackage backup, string fileName) => MessageBox.Show($" Полная резервная копия успешно создана!\n\n" + $"Файл: {Path.GetFileName(fileName)}\n" + $"📊 Статистика:\n" + $" Зон: {backup.Zones.Count}\n" +
-                $"Гидрантов: {backup.Hydrants.Count}\n" + $" Привязок: {backup.Bindings.Count}\n" + $"Описание: {backup.BackupDescription}",
+        private static void ShowBackupResult(BackupPackage backup, string fileName) => MessageBox.Show($"Полная резервная копия успешно создана!\n\n" + $"Файл: {Path.GetFileName(fileName)}\n" + $"📊 Статистика:\n" + $"Зон: {backup.Zones.Count}\n" +
+                $"Гидрантов: {backup.Hydrants.Count}\n" + $"Описание: {backup.BackupDescription}",
                 "Резервное копирование", MessageBoxButton.OK, MessageBoxImage.Information);
 
         private static void ShowRestoreResult(BackupPackage backup, string fileName)
         {
             MessageBox.Show($"Восстановление из резервной копии успешно завершено!\n\n" + $"Файл: {Path.GetFileName(fileName)}\n" + $"Описание: {backup.BackupDescription}\n\n" +
-                $"Восстановлено:\n" + $" Зон: {backup.Zones.Count}\n" + $"Гидрантов: {backup.Hydrants.Count}\n" +
-                $" Привязок: {backup.Bindings.Count}", "Восстановление", MessageBoxButton.OK, MessageBoxImage.Information);
+                $"Восстановлено:\n" + $"Зон: {backup.Zones.Count}\n" + $"Гидрантов: {backup.Hydrants.Count}\n",
+                "Восстановление", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         #endregion
     }

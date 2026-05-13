@@ -1,40 +1,60 @@
 ﻿<Window x:Class="ZoneHydrantEditor.AddMarkerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Height="500" Width="380"
+        Height="600" Width="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="5">
         <TextBlock Text="Введите данные о гидранте:" FontSize="16" FontWeight="SemiBold"/>
+        
         <TextBlock Text="Номер гидранта:"/>
         <TextBox Name="GidrantNumberTextBox" Height="25"/>
-        <TextBlock Text="Диаметр трубы:"/>
-        <TextBox Name="GidrantTrubaTextBox" Height="25"/>
-        <TextBlock Text="Адрес:"/>
+        
+        <TextBlock Text="Тип гидранта:"/>
+        <ComboBox Name="TypeComboBox" Height="25"/>
+        
+        <TextBlock Text="Тип трубы:"/>
+        <ComboBox Name="PipeTypeComboBox" Height="25"/>
+        
+        <TextBlock Text="Диаметр:"/>
+        <ComboBox Name="DiameterComboBox" Height="25"/>
+        
+        <TextBlock Text="Диаметр ПК:"/>
+        <ComboBox Name="PKDiameterComboBox" Height="25"/>
+        
+        <TextBlock Text="Адресный объект:"/>
+        <ComboBox Name="AddressObjectComboBox" Height="25"/>
+        
+        <TextBlock Text="Номер дома:"/>
+        <TextBox Name="HouseNumberTextBox" Height="25"/>
+        
+        <TextBlock Text="Примечание к адресу:"/>
+        <TextBox Name="AddressNoteTextBox" Height="25"/>
+        
+        <TextBlock Text="Полный адрес:"/>
         <StackPanel Orientation="Horizontal">
-            <TextBox x:Name="GidrantAdresTextBox" Height="25" Width="250" VerticalContentAlignment="Center" HorizontalContentAlignment="Left"/>
-            <Button x:Name="AutoAddressButton" Content="Определить" Width="Auto" Height="25" FontSize="12" Margin="5" Click="AutoAddressButton_Click"/>
+            <TextBox x:Name="GidrantAdresTextBox" Height="25" Width="290" VerticalContentAlignment="Center" HorizontalContentAlignment="Left" IsReadOnly="True" Background="#F0F0F0"/>
+            <Button x:Name="AutoAddressButton" Content="Опред." Width="Auto" Height="25" FontSize="12" Margin="5" Click="AutoAddressButton_Click"/>
         </StackPanel>
+        
         <TextBlock Text="Принадлежность:"/>
         <StackPanel Orientation="Horizontal">
             <ComboBox Name="CompanyComboBox" Height="25" Width="200"/>
             <Button Content="+" Width="25" Height="25" Margin="5,0,0,0" 
                     Click="AddCompanyButton_Click" ToolTip="Добавить новую принадлежность"/>
         </StackPanel>
+        
         <TextBlock Text="Статус:"/>
-        <ComboBox Name="StatusComboBox" Height="25" SelectionChanged="StatusComboBox_SelectionChanged">
-            <ComboBoxItem Content="Исправный" IsSelected="True"/>
-            <ComboBoxItem Content="Неисправный"/>
-            <ComboBoxItem Content="Непроверенный"/>
-        </ComboBox>
-        <TextBlock Name="BreakReasonLabel" Text="Причина поломки:" Visibility="Collapsed"/>
-        <ComboBox Name="BreakReasonComboBox" Height="25" Visibility="Collapsed">
-            <ComboBoxItem Content="Сломан"/>
-            <ComboBoxItem Content="Нет воды"/>
-        </ComboBox>
+        <ComboBox Name="StatusComboBox" Height="25"/>
+        
+        <TextBlock Text="Примечание:"/>
+        <TextBox Name="NotesTextBox" Height="50" TextWrapping="Wrap" AcceptsReturn="True"/>
+        
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
             <Button Content="Отмена" Width="80" Height="30" Click="CancelButton_Click"/>
             <Button Content="Сохранить" Width="80" Height="30" Background="#4682B4" Foreground="White" Click="SaveButton_Click" Margin="5"/>
         </StackPanel>
     </StackPanel>
+    </ScrollViewer>
 </Window>

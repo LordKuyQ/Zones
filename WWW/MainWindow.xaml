@@ -216,17 +216,17 @@
                                     <Setter Property="FontWeight" Value="Normal"/>
                                     <Setter Property="Padding" Value="5"/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Status}" Value="Исправный">
+                                        <DataTrigger Binding="{Binding StatusName}" Value="Исправный">
                                             <Setter Property="Background" Value="#DFF0D8"/>
                                             <Setter Property="Foreground" Value="#3C763D"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </DataTrigger>
-                                        <DataTrigger Binding="{Binding Status}" Value="Неисправный">
+                                        <DataTrigger Binding="{Binding StatusName}" Value="Неисправный">
                                             <Setter Property="Background" Value="#F2DEDE"/>
                                             <Setter Property="Foreground" Value="#A94442"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
                                         </DataTrigger>
-                                        <DataTrigger Binding="{Binding Status}" Value="Непроверенный">
+                                        <DataTrigger Binding="{Binding StatusName}" Value="Непроверенный">
                                             <Setter Property="Background" Value="#FCF8E3"/>
                                             <Setter Property="Foreground" Value="#8A6D3B"/>
                                             <Setter Property="FontWeight" Value="Bold"/>
@@ -244,15 +244,15 @@
                             </DataGrid.Resources>
 
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Номер гидранта" Binding="{Binding GidrantNumber}" Width="Auto"/>
-                                <DataGridTextColumn Header="Диаметр трубы" Binding="{Binding GidrantTruba}" Width="Auto"/>
-                                <DataGridTextColumn Header="Адрес привязки" Binding="{Binding GidrantAdres}" Width="Auto"/>
-                                <DataGridTextColumn Header="Принадлежность" Binding="{Binding CompanyName}" Width="Auto"/>
-                                <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource StatusTextStyle}"/>
-                                <DataGridTextColumn Header="Причина поломки" Binding="{Binding BreakReason}" Width="Auto"/>
-                                <DataGridTextColumn Header="Номер общего плана" Binding="{Binding ZoneId}" Width="Auto"/>
-                                <DataGridTextColumn Header="Широта" Binding="{Binding Latitude}" Width="Auto"/>
-                                <DataGridTextColumn Header="Долгота" Binding="{Binding Longitude}" Width="Auto"/>
+                                <DataGridTextColumn Header="Номер гидранта" Binding="{Binding DisplayNumber}" Width="Auto"/>
+                                <DataGridTextColumn Header="Диаметр трубы" Binding="{Binding PipeInfo}" Width="Auto"/>
+                                <DataGridTextColumn Header="Адрес привязки" Binding="{Binding AddressText}" Width="Auto"/>
+                                <DataGridTextColumn Header="Принадлежность" Binding="{Binding OrganizationName}" Width="Auto"/>
+                                <DataGridTextColumn Header="Статус" Binding="{Binding StatusName}" Width="Auto" MinWidth="100" ElementStyle="{StaticResource StatusTextStyle}"/>
+                                <DataGridTextColumn Header="Имя зоны" Binding="{Binding ZoneName}" Width="Auto"/>
+                                <DataGridTextColumn Header="ID общего плана" Binding="{Binding ZoneId}" Width="Auto"/>
+                                <DataGridTextColumn Header="Широта" Binding="{Binding LatitudeD}" Width="Auto"/>
+                                <DataGridTextColumn Header="Долгота" Binding="{Binding LongitudeD}" Width="Auto"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </ScrollViewer>

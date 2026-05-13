@@ -120,4 +120,8 @@ public class GridCellData
     public double Longitude { get; set; }
     public string Status { get; set; }
     public string BreakReason { get; set; }
+    public string EwsId { get; set; } = "";
+    public string EwsPriviazka { get; set; } = "";
+    public string EwsPriviazkaGeoX { get; set; } = "";
+    public string EwsPriviazkaGeoY { get; set; } = "";
 }
