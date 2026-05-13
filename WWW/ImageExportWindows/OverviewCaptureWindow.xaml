@@ -1,0 +1,24 @@
+﻿<Window x:Class="ZoneHydrantEditor.OverviewCaptureWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:gmap="clr-namespace:GMap.NET.WindowsPresentation;assembly=GMap.NET.WindowsPresentation"
+        Title="Общий план"
+        Width="1024"
+        Height="768"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="SingleBorderWindow"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ResizeMode="NoResize">
+    <StackPanel>
+        <StackPanel x:Name="TitleGrid" 
+              HorizontalAlignment="Stretch" 
+              VerticalAlignment="Top" 
+              Height="40">
+            <TextBlock Name="TitleText" Text="Общий план: " FontSize="14" FontWeight="SemiBold" Foreground="Black"  HorizontalAlignment="Center" VerticalAlignment="Top" Margin="5" TextAlignment="Center"/>
+        </StackPanel>
+        <Border  BorderBrush="Gray" BorderThickness="2" Margin="5" Background="White" Height="700">
+            <gmap:GMapControl x:Name="ZoneMap" CanDragMap="False" MouseWheelZoomEnabled="False" MinZoom="2" MaxZoom="18"/>
+        </Border>
+    </StackPanel>
+</Window>
