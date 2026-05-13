@@ -1,4 +1,4 @@
-﻿namespace ZoneHydrantEditor.Models
+namespace ZoneHydrantEditor.Models
 {
     public class BindingInfo
     {

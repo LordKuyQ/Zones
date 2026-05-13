@@ -24,6 +24,7 @@ namespace ZoneHydrantEditor
     {
         #region ПОЛЯ И СВОЙСТВА
         private readonly DatabaseService _dbService;
+        private readonly EwsMapDataService _ewsService;
         private readonly BackupService _backupService;
         private const string ZonesDbFile = "zones0815.db";
         private const string HydrantsDbFile = "hydrants0815.db";
@@ -57,6 +58,7 @@ namespace ZoneHydrantEditor
         {
             InitializeComponent();
             _dbService = new DatabaseService();
+            _ewsService = new EwsMapDataService();
             _backupService = new BackupService(_dbService, ZonesDbFile, HydrantsDbFile);
             _routingService = new RoutingService();
             _geocodingService = new GeocodingHelper();
@@ -1008,7 +1010,7 @@ namespace ZoneHydrantEditor
         #region ЗАГРУЗКА ДАННЫХ ДЛЯ КАРТЫ ГИДРАНТОВ (ВКЛ2)
         private void LoadHydrantsFromDatabase()
         {
-            var markers = _dbService.GetAllMarkers();
+            var markers = _ewsService.GetAllHydrantsAsMarkers();
             foreach (var marker in markers)
             {
                 AddOrUpdateHydrantMarker(marker.Id, marker.Latitude, marker.Longitude, marker.GidrantNumber, marker.GidrantTruba, marker.Status);

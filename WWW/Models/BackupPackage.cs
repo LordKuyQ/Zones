@@ -1,4 +1,4 @@
-﻿namespace ZoneHydrantEditor.Models
+namespace ZoneHydrantEditor.Models
 {
     [Serializable]
     public class BackupPackage

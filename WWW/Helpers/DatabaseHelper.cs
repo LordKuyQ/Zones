@@ -387,9 +387,9 @@ namespace ZoneHydrantEditor.Helpers
             }
         }
 
-        public List<(int Id, string Name)> GetAllZones()
+        public List<Zone> GetAllZones()
         {
-            var zones = new List<(int Id, string Name)>();
+            var zones = new List<Zone>();
 
             try
             {
@@ -400,9 +400,11 @@ namespace ZoneHydrantEditor.Helpers
 
                 while (zonesReader.Read())
                 {
-                    int id = zonesReader.GetInt32(0);
-                    string name = zonesReader.GetString(1);
-                    zones.Add((id, name));
+                    zones.Add(new Zone
+                    {
+                        Id = zonesReader.GetInt32(0),
+                        Name = zonesReader.GetString(1)
+                    });
                 }
             }
             finally

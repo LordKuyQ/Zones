@@ -1,4 +1,4 @@
-﻿namespace ZoneHydrantEditor
+namespace ZoneHydrantEditor
 {
     public class ZoneInfo
     {

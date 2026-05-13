@@ -49,14 +49,14 @@ namespace ZoneHydrantEditor.Helpers
                         BackupDescription = description
                     };
                     var zones = _dbService.GetAllZones();
-                    foreach (var (Id, Name) in zones)
+                    foreach (var zone in zones)
                     {
                         var zoneData = new ZoneBackupData
                         {
-                            Id = Id,
-                            Name = Name
+                            Id = zone.Id,
+                            Name = zone.Name
                         };
-                        var points = _dbService.GetZonePoints(Id);
+                        var points = _dbService.GetZonePoints(zone.Id);
                         foreach (var point in points)
                         {
                             zoneData.Points.Add(new PointLatLngBackup(point.Lat, point.Lng));
