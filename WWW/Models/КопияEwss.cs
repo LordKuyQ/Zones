@@ -1,0 +1,69 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace TestDbApp.Models;
+
+public partial class КопияEwss
+{
+    public string? EwsMapId { get; set; }
+
+    public string? EwsCityMunicipalityOfRegionCod { get; set; }
+
+    public string? EwsUnitCod { get; set; }
+
+    public string? EwsId { get; set; }
+
+    public string? EwsDistrictCod { get; set; }
+
+    public string? EwsCoordX { get; set; }
+
+    public string? EwsCoordY { get; set; }
+
+    public decimal? EwsGeoCoordX { get; set; }
+
+    public decimal? EwsGeoCoordY { get; set; }
+
+    public string? EwsStreetCod { get; set; }
+
+    public string? EwsBuilding { get; set; }
+
+    public string? EwsType { get; set; }
+
+    public string? EwsNumber { get; set; }
+
+    public string? EwsOrganizationCod { get; set; }
+
+    public string? EwsPipeType { get; set; }
+
+    public string? EwsDiameterCod { get; set; }
+
+    public string? EwsPkdiameter { get; set; }
+
+    public string? EwsValue { get; set; }
+
+    public string? EwsPacount { get; set; }
+
+    public string? EwsDirLeft { get; set; }
+
+    public string? EwsDirRight { get; set; }
+
+    public string? EwsDirStright { get; set; }
+
+    public string? EwsPriviazka { get; set; }
+
+    public string? EwsStatus { get; set; }
+
+    public string? EwsNotes { get; set; }
+
+    public DateTime? RecordCreated { get; set; }
+
+    public DateTime? RecordModyfied { get; set; }
+
+    public string? RecordUser { get; set; }
+
+    public string? RecordComputer { get; set; }
+
+    public string? RecordStatus { get; set; }
+
+    public string? RecordNote { get; set; }
+}
