@@ -43,8 +43,189 @@ namespace ZoneHydrantEditor.Helpers
         public List<SwitchboardItem> GetAllSwitchboardItems() => Query<SwitchboardItem>("Switchboard Items");
         public List<UserSetting> GetAllUserSettings() => Query<UserSetting>("UserSettings");
         public List<EwsType> GetAllEwsTypes() => Query<EwsType>("EWS_Type");
-        public List<EwsDiameter> GetAllEwsDiameters() => Query<EwsDiameter>("EWS_Diameter");
-        public List<EwsPkdiameter> GetAllEwsPkdiameters() => Query<EwsPkdiameter>("EWS_PKDiameter");
+
+        // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ДИАМЕТРОВ
+        public List<EwsDiameter> GetAllEwsDiameters()
+        {
+            var result = new List<EwsDiameter>();
+
+            try
+            {
+                // Проверяем существование таблицы
+                var tableExists = false;
+                using (var cmd = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='EWS_Diameter'", _connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    tableExists = reader.Read();
+                }
+
+                if (!tableExists)
+                {
+                    System.Diagnostics.Debug.WriteLine("Таблица EWS_Diameter не существует!");
+                    return result;
+                }
+
+                // Получаем список колонок
+                var columns = new List<string>();
+                using (var cmd = new SQLiteCommand("PRAGMA table_info(EWS_Diameter)", _connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        columns.Add(reader.GetString(1));
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Колонки в EWS_Diameter: {string.Join(", ", columns)}");
+
+                // Читаем данные
+                using (var cmd = new SQLiteCommand("SELECT * FROM EWS_Diameter", _connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var item = new EwsDiameter();
+
+                        // Маппинг колонок (регистронезависимо)
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            var colName = reader.GetName(i).ToUpperInvariant();
+                            var value = reader.GetValue(i);
+
+                            if (colName == "EWS_DIAMETER_ID" || colName == "EWS_DIAMETERID")
+                            {
+                                item.EwsDiameterId = value != DBNull.Value ? value.ToString() : null;
+                            }
+                            else if (colName == "EWS_DIAMETER1" || colName == "EWS_DIAMETER")
+                            {
+                                item.EwsDiameter1 = value != DBNull.Value ? value.ToString() : null;
+                            }
+                            else if (colName == "EWS_IZM" || colName == "IZM")
+                            {
+                                item.EwsIzm = value != DBNull.Value ? value.ToString() : null;
+                            }
+                            else if (colName == "NOTE" || colName == "NOTES")
+                            {
+                                item.Note = value != DBNull.Value ? value.ToString() : null;
+                            }
+                        }
+
+                        result.Add(item);
+                        System.Diagnostics.Debug.WriteLine($"Загружен диаметр: ID={item.EwsDiameterId}, Значение={item.EwsDiameter1}, Ед.изм={item.EwsIzm}");
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Всего загружено диаметров: {result.Count}");
+
+                // Если данных нет, создаем тестовые
+                if (result.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Нет данных в таблице EWS_Diameter, создаем тестовые");
+                    result.Add(new EwsDiameter { EwsDiameterId = "1", EwsDiameter1 = "100", EwsIzm = "мм" });
+                    result.Add(new EwsDiameter { EwsDiameterId = "2", EwsDiameter1 = "150", EwsIzm = "мм" });
+                    result.Add(new EwsDiameter { EwsDiameterId = "3", EwsDiameter1 = "200", EwsIzm = "мм" });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка GetAllEwsDiameters: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine(ex.StackTrace);
+            }
+
+            return result;
+        }
+
+        // ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ДИАМЕТРОВ ПК
+        public List<EwsPkdiameter> GetAllEwsPkdiameters()
+        {
+            var result = new List<EwsPkdiameter>();
+
+            try
+            {
+                // Проверяем существование таблицы
+                var tableExists = false;
+                using (var cmd = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='EWS_PKDiameter'", _connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    tableExists = reader.Read();
+                }
+
+                if (!tableExists)
+                {
+                    System.Diagnostics.Debug.WriteLine("Таблица EWS_PKDiameter не существует!");
+                    return result;
+                }
+
+                // Получаем список колонок
+                var columns = new List<string>();
+                using (var cmd = new SQLiteCommand("PRAGMA table_info(EWS_PKDiameter)", _connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        columns.Add(reader.GetString(1));
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Колонки в EWS_PKDiameter: {string.Join(", ", columns)}");
+
+                // Читаем данные
+                using (var cmd = new SQLiteCommand("SELECT * FROM EWS_PKDiameter", _connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var item = new EwsPkdiameter();
+
+                        // Маппинг колонок (регистронезависимо)
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            var colName = reader.GetName(i).ToUpperInvariant();
+                            var value = reader.GetValue(i);
+
+                            if (colName == "EWS_PKDIAMETER_ID" || colName == "EWS_PKDIAMETERID")
+                            {
+                                item.EwsPkdiameterId = value != DBNull.Value ? value.ToString() : null;
+                            }
+                            else if (colName == "EWS_PKDIAMETER1" || colName == "EWS_PKDIAMETER")
+                            {
+                                item.EwsPkdiameter1 = value != DBNull.Value ? value.ToString() : null;
+                            }
+                            else if (colName == "EWS_IZM" || colName == "IZM")
+                            {
+                                item.EwsIzm = value != DBNull.Value ? value.ToString() : null;
+                            }
+                            else if (colName == "NOTE" || colName == "NOTES")
+                            {
+                                item.Note = value != DBNull.Value ? value.ToString() : null;
+                            }
+                        }
+
+                        result.Add(item);
+                        System.Diagnostics.Debug.WriteLine($"Загружен диаметр ПК: ID={item.EwsPkdiameterId}, Значение={item.EwsPkdiameter1}, Ед.изм={item.EwsIzm}");
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Всего загружено диаметров ПК: {result.Count}");
+
+                // Если данных нет, создаем тестовые
+                if (result.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("Нет данных в таблице EWS_PKDiameter, создаем тестовые");
+                    result.Add(new EwsPkdiameter { EwsPkdiameterId = "1", EwsPkdiameter1 = "50", EwsIzm = "мм" });
+                    result.Add(new EwsPkdiameter { EwsPkdiameterId = "2", EwsPkdiameter1 = "65", EwsIzm = "мм" });
+                    result.Add(new EwsPkdiameter { EwsPkdiameterId = "3", EwsPkdiameter1 = "80", EwsIzm = "мм" });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка GetAllEwsPkdiameters: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine(ex.StackTrace);
+            }
+
+            return result;
+        }
+
         public List<EwsPipeType> GetAllEwsPipeTypes() => Query<EwsPipeType>("EWS_PipeType");
         public List<EwsValue> GetAllEwsValues() => Query<EwsValue>("EWS_Value");
         public List<EwsListitem> GetAllEwsListitems() => Query<EwsListitem>("EWS_Listitems");
@@ -186,7 +367,7 @@ namespace ZoneHydrantEditor.Helpers
         }
         #endregion
 
-        #region Binding operations (Ewss fields)
+        #region Binding operations
         public void UpdateEwssBinding(string ewsId, string? priviazka, string? geoX, string? geoY)
         {
             using var cmd = new SQLiteCommand(

@@ -35,43 +35,182 @@ namespace ZoneHydrantEditor
         {
             try
             {
+                // Загрузка типов гидрантов
                 _types = _ewsService.GetAllEwsTypes();
+                TypeComboBox.Items.Clear();
                 TypeComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
                 foreach (var t in _types)
                     TypeComboBox.Items.Add(new ComboBoxItem { Content = t.EwsTypeNameShort ?? "", Tag = t.EwsTypeId ?? "" });
 
+                // Загрузка типов труб
                 _pipeTypes = _ewsService.GetAllEwsPipeTypes();
+                PipeTypeComboBox.Items.Clear();
                 PipeTypeComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
                 foreach (var p in _pipeTypes)
                     PipeTypeComboBox.Items.Add(new ComboBoxItem { Content = p.EwsPipeTypeName ?? "", Tag = p.EwsPipeTypeId ?? "" });
 
-                _diameters = _ewsService.GetAllEwsDiameters();
-                DiameterComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
-                foreach (var d in _diameters)
-                    DiameterComboBox.Items.Add(new ComboBoxItem { Content = d.EwsDiameter1 ?? "", Tag = d.EwsDiameterId ?? "" });
+                // ЗАГРУЗКА ДИАМЕТРОВ (исправленная версия)
+                try
+                {
+                    _diameters = _ewsService.GetAllEwsDiameters();
 
-                _pkdiameters = _ewsService.GetAllEwsPkdiameters();
-                PKDiameterComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
-                foreach (var pkd in _pkdiameters)
-                    PKDiameterComboBox.Items.Add(new ComboBoxItem { Content = pkd.EwsPkdiameter1 ?? "", Tag = pkd.EwsPkdiameterId ?? "" });
+                    // Диагностика в Output окно вместо MessageBox
+                    System.Diagnostics.Debug.WriteLine($"=== Диагностика диаметров ===");
+                    System.Diagnostics.Debug.WriteLine($"Количество диаметров: {_diameters?.Count ?? 0}");
 
+                    DiameterComboBox.Items.Clear();
+
+                    if (_diameters != null && _diameters.Any())
+                    {
+                        foreach (var d in _diameters)
+                        {
+                            // Формируем отображаемое значение
+                            string displayValue = "";
+
+                            // Проверяем все возможные поля
+                            if (!string.IsNullOrWhiteSpace(d.EwsDiameter1))
+                            {
+                                displayValue = d.EwsDiameter1;
+                            }
+                            else if (!string.IsNullOrWhiteSpace(d.Note))
+                            {
+                                displayValue = d.Note;
+                            }
+                            else
+                            {
+                                displayValue = "(без значения)";
+                            }
+
+                            // Добавляем единицу измерения, если есть
+                            if (!string.IsNullOrWhiteSpace(d.EwsIzm))
+                            {
+                                displayValue = $"{displayValue} {d.EwsIzm}";
+                            }
+
+                            // Создаем ComboBoxItem
+                            var item = new ComboBoxItem
+                            {
+                                Content = displayValue.Trim(),
+                                Tag = d.EwsDiameterId ?? ""
+                            };
+
+                            DiameterComboBox.Items.Add(item);
+
+                            // Выводим в Debug
+                            System.Diagnostics.Debug.WriteLine($"Добавлен диаметр: ID={d.EwsDiameterId}, Значение={displayValue}, EwsDiameter1={d.EwsDiameter1}");
+                        }
+                    }
+                    else
+                    {
+                        // Если данных нет, добавляем тестовые значения
+                        DiameterComboBox.Items.Add(new ComboBoxItem { Content = "(нет данных)", Tag = "" });
+                        System.Diagnostics.Debug.WriteLine("Диаметры не найдены в БД");
+                    }
+
+                    // Устанавливаем выбранный элемент по умолчанию
+                    if (DiameterComboBox.Items.Count > 0)
+                        DiameterComboBox.SelectedIndex = 0;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка загрузки диаметров: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine(ex.StackTrace);
+
+                    MessageBox.Show($"Ошибка загрузки диаметров: {ex.Message}\n\nПроверьте подключение к БД и наличие данных в таблице EwsDiameter.",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                    DiameterComboBox.Items.Clear();
+                    DiameterComboBox.Items.Add(new ComboBoxItem { Content = "Ошибка загрузки", Tag = "" });
+                }
+
+                // ЗАГРУЗКА ДИАМЕТРОВ ПК (исправленная версия)
+                try
+                {
+                    _pkdiameters = _ewsService.GetAllEwsPkdiameters();
+
+                    System.Diagnostics.Debug.WriteLine($"=== Диагностика диаметров ПК ===");
+                    System.Diagnostics.Debug.WriteLine($"Количество диаметров ПК: {_pkdiameters?.Count ?? 0}");
+
+                    PKDiameterComboBox.Items.Clear();
+
+                    if (_pkdiameters != null && _pkdiameters.Any())
+                    {
+                        foreach (var pkd in _pkdiameters)
+                        {
+                            string displayValue = "";
+
+                            if (!string.IsNullOrWhiteSpace(pkd.EwsPkdiameter1))
+                            {
+                                displayValue = pkd.EwsPkdiameter1;
+                            }
+                            else if (!string.IsNullOrWhiteSpace(pkd.Note))
+                            {
+                                displayValue = pkd.Note;
+                            }
+                            else
+                            {
+                                displayValue = "(без значения)";
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(pkd.EwsIzm))
+                            {
+                                displayValue = $"{displayValue} {pkd.EwsIzm}";
+                            }
+
+                            var item = new ComboBoxItem
+                            {
+                                Content = displayValue.Trim(),
+                                Tag = pkd.EwsPkdiameterId ?? ""
+                            };
+
+                            PKDiameterComboBox.Items.Add(item);
+
+                            System.Diagnostics.Debug.WriteLine($"Добавлен диаметр ПК: ID={pkd.EwsPkdiameterId}, Значение={displayValue}");
+                        }
+                    }
+                    else
+                    {
+                        PKDiameterComboBox.Items.Add(new ComboBoxItem { Content = "(нет данных)", Tag = "" });
+                        System.Diagnostics.Debug.WriteLine("Диаметры ПК не найдены в БД");
+                    }
+
+                    if (PKDiameterComboBox.Items.Count > 0)
+                        PKDiameterComboBox.SelectedIndex = 0;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка загрузки диаметров ПК: {ex.Message}");
+
+                    MessageBox.Show($"Ошибка загрузки диаметров ПК: {ex.Message}\n\nПроверьте подключение к БД и наличие данных в таблице EwsPkdiameter.",
+                        "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                    PKDiameterComboBox.Items.Clear();
+                    PKDiameterComboBox.Items.Add(new ComboBoxItem { Content = "Ошибка загрузки", Tag = "" });
+                }
+
+                // Остальной код загрузки остается без изменений...
                 _addressObjects = _ewsService.GetAllAdressObjects();
+                AddressObjectComboBox.Items.Clear();
                 AddressObjectComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
                 foreach (var a in _addressObjects)
                     AddressObjectComboBox.Items.Add(new ComboBoxItem { Content = a.AdressObjectName ?? "", Tag = a.AdressObjectId ?? "" });
 
                 _organizations = _ewsService.GetAllOrganizations();
+                CompanyComboBox.Items.Clear();
                 CompanyComboBox.Items.Add(new ComboBoxItem { Content = "(не выбрана)", Tag = "" });
                 foreach (var org in _organizations)
-                    CompanyComboBox.Items.Add(new ComboBoxItem { Content = org.OrganizationNameShort ?? "", Tag = org.OrganizationId ?? "0" });
+                    CompanyComboBox.Items.Add(new ComboBoxItem { Content = org.OrganizationNameShort ?? "", Tag = org.OrganizationId?.ToString() ?? "0" });
 
                 _statuses = _ewsService.GetAllCEwsStatuses();
+                StatusComboBox.Items.Clear();
+                StatusComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
                 foreach (var s in _statuses)
                     StatusComboBox.Items.Add(new ComboBoxItem { Content = s.EwsStatusName ?? "", Tag = s.EwsStatusId ?? "" });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки справочных данных: {ex.Message}");
+                MessageBox.Show($"Ошибка загрузки справочных данных: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -153,6 +292,7 @@ namespace ZoneHydrantEditor
         private static void SelectComboBoxItemByTag(ComboBox combo, string? tagValue)
         {
             if (string.IsNullOrEmpty(tagValue)) return;
+
             foreach (ComboBoxItem item in combo.Items)
             {
                 if (item.Tag?.ToString() == tagValue)
