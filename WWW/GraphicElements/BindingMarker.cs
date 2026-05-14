@@ -4,49 +4,70 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using GMap.NET;
 using GMap.NET.WindowsPresentation;
-using ZoneHydrantEditor.Models;
+using TestDbApp.Models;
+using ZoneHydrantEditor.Helpers;
 
 namespace ZoneHydrantEditor.GraphicElements
 {
     public static class BindingMarker
     {
-        public static GMapMarker CreateMarker(BindingInfo binding, PointLatLng hydrantPosition, int currentZoom)
+        public static GMapMarker CreateMarkerFromEwss(Ewss ewss, PointLatLng hydrantPosition, int currentZoom)
         {
             double markerScale = MarkerScaling.GetMarkerScale(currentZoom);
             bool showText = MarkerScaling.ShouldShowText(currentZoom);
 
-            var canvas = CreateBindingCanvas(markerScale, showText, binding, hydrantPosition);
+            var coord = Utility.ParseBindingCoord(ewss.EwsPriviazka);
+            if (coord == null)
+            {
+                var fallback = new GMapMarker(hydrantPosition)
+                {
+                    Shape = new Canvas { Width = 1, Height = 1 },
+                    Tag = $"binding_{ewss.EwsId}"
+                };
+                return fallback;
+            }
 
-            var marker = new GMapMarker(new PointLatLng(binding.Latitude, binding.Longitude))
+            double dx = Utility.ParseBindingDistance(ewss.EwsPriviazkaGeoX);
+            double dy = Utility.ParseBindingDistance(ewss.EwsPriviazkaGeoY);
+
+            var canvas = CreateBindingCanvas(markerScale, showText, coord.Value.lat, coord.Value.lng, hydrantPosition, dx, dy, ewss.DisplayNumber, ewss.PipeInfo);
+
+            var marker = new GMapMarker(new PointLatLng(coord.Value.lat, coord.Value.lng))
             {
                 Shape = canvas,
                 Offset = new Point(-3 * markerScale, -3 * markerScale),
-                Tag = $"binding_{binding.Id}"
+                Tag = $"binding_{ewss.EwsId}"
             };
 
             return marker;
         }
 
-        public static GMapMarker CreateSimpleBinding(BindingInfo binding)
+        public static GMapMarker CreateSimpleBinding(double lat, double lng, string ewsId)
         {
             var canvas = new Canvas
             {
                 IsHitTestVisible = false,
-                Width = 200,Height = 100,ClipToBounds = false
+                Width = 200,
+                Height = 100,
+                ClipToBounds = false
             };
             var rectangle = new Rectangle
             {
-                Width = 6,Height = 6,
-                Fill = Brushes.Black,Stroke = Brushes.White,StrokeThickness = 1,IsHitTestVisible = false
+                Width = 6,
+                Height = 6,
+                Fill = Brushes.Black,
+                Stroke = Brushes.White,
+                StrokeThickness = 1,
+                IsHitTestVisible = false
             };
             Canvas.SetLeft(rectangle, 0);
             Canvas.SetTop(rectangle, 0);
             canvas.Children.Add(rectangle);
-            var marker = new GMapMarker(new PointLatLng(binding.Latitude, binding.Longitude))
+            var marker = new GMapMarker(new PointLatLng(lat, lng))
             {
                 Shape = canvas,
                 Offset = new Point(-3, -3),
-                Tag = $"binding_{binding.Id}"
+                Tag = $"binding_{ewsId}"
             };
 
             return marker;
@@ -83,10 +104,10 @@ namespace ZoneHydrantEditor.GraphicElements
             marker.Offset = new Point(-3 * markerScale, -3 * markerScale);
         }
 
-        private static Canvas CreateBindingCanvas(double markerScale, bool showText,BindingInfo binding, PointLatLng hydrantPosition)
+        private static Canvas CreateBindingCanvas(double markerScale, bool showText,
+            double bindingLat, double bindingLng, PointLatLng hydrantPosition,
+            double dx, double dy, string number, string pipeInfo)
         {
-            double dx = (binding.Latitude - hydrantPosition.Lat) * 111320;
-            double dy = (binding.Longitude - hydrantPosition.Lng) *(111320 * Math.Cos(hydrantPosition.Lat * Math.PI / 180));
             var canvas = new Canvas
             {
                 IsHitTestVisible = false,
@@ -96,25 +117,31 @@ namespace ZoneHydrantEditor.GraphicElements
             };
             var rectangle = new Rectangle
             {
-                Width = 6 * markerScale,Height = 6 * markerScale,
-                Fill = Brushes.Black,Stroke = Brushes.White,StrokeThickness = 1 * markerScale,IsHitTestVisible = false
+                Width = 6 * markerScale,
+                Height = 6 * markerScale,
+                Fill = Brushes.Black,
+                Stroke = Brushes.White,
+                StrokeThickness = 1 * markerScale,
+                IsHitTestVisible = false
             };
             Canvas.SetLeft(rectangle, 0);
             Canvas.SetTop(rectangle, 0);
             canvas.Children.Add(rectangle);
-            string hydrantName = string.IsNullOrEmpty(binding.HydrantNumber) ? "Гидрант" : binding.HydrantNumber;
-            if (!string.IsNullOrEmpty(binding.HydrantTruba))
+            string hydrantName = string.IsNullOrEmpty(number) ? "Гидрант" : number;
+            if (!string.IsNullOrEmpty(pipeInfo))
             {
-                hydrantName += $" {binding.HydrantTruba}";
-            }    
+                hydrantName += $" {pipeInfo}";
+            }
 
             var textBlock = new TextBlock
             {
                 Text = $"{hydrantName}\nX: {(dx >= 0 ? "+" : "")}{dx:F0} м\nY: {(dy >= 0 ? "+" : "")}{dy:F0} м",
-                FontSize = 10 * markerScale,Foreground = Brushes.Black,
+                FontSize = 10 * markerScale,
+                Foreground = Brushes.Black,
                 Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
                 Padding = new Thickness(2 * markerScale),
-                IsHitTestVisible = false,Visibility = showText ? Visibility.Visible : Visibility.Collapsed
+                IsHitTestVisible = false,
+                Visibility = showText ? Visibility.Visible : Visibility.Collapsed
             };
             Canvas.SetLeft(textBlock, 8 * markerScale);
             Canvas.SetTop(textBlock, -12 * markerScale);

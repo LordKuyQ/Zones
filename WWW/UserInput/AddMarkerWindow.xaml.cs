@@ -7,51 +7,71 @@ namespace ZoneHydrantEditor
 {
     public partial class AddMarkerWindow : Window
     {
-        public string GidrantNumber { get; set; }
-        public string GidrantTruba { get; set; }
-        public string GidrantAdres { get; set; }
-        public string CompanyName { get; set; }
-        public string Status { get; set; }
-        public string BreakReason { get; set; }
+        public Ewss EditEwss { get; set; } = new Ewss();
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
         private bool _isLoaded = false;
         private bool _isAddressResolving = false;
         private readonly GeocodingHelper _geocodingService;
-        private readonly DatabaseService _dbService;
-        private List<_05Organization> _companies;
+        private readonly EwsMapDataService _ewsService;
+        private List<_05Organization> _organizations;
+        private List<EwsType> _types;
+        private List<EwsPipeType> _pipeTypes;
+        private List<EwsDiameter> _diameters;
+        private List<EwsPkdiameter> _pkdiameters;
+        private List<_04AdressObject> _addressObjects;
+        private List<CEwsStatus> _statuses;
 
-        public AddMarkerWindow(DatabaseService dbService = null)
+        public AddMarkerWindow(EwsMapDataService ewsService = null)
         {
             InitializeComponent();
             _geocodingService = new GeocodingHelper();
-            _dbService = dbService ?? new DatabaseService();
-            LoadCompanies();
+            _ewsService = ewsService ?? new EwsMapDataService();
+            LoadReferenceData();
             Loaded += AddMarkerWindow_Loaded;
         }
 
-        private void LoadCompanies()
+        private void LoadReferenceData()
         {
             try
             {
-                _companies = _dbService.GetAllCompanies();
-                CompanyComboBox.Items.Clear();
+                _types = _ewsService.GetAllEwsTypes();
+                TypeComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
+                foreach (var t in _types)
+                    TypeComboBox.Items.Add(new ComboBoxItem { Content = t.EwsTypeNameShort ?? "", Tag = t.EwsTypeId ?? "" });
 
-                foreach (var org in _companies)
-                {
-                    CompanyComboBox.Items.Add(new ComboBoxItem
-                    {
-                        Content = org.OrganizationNameShort ?? "",
-                        Tag = org.OrganizationId ?? "0"
-                    });
-                }
+                _pipeTypes = _ewsService.GetAllEwsPipeTypes();
+                PipeTypeComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
+                foreach (var p in _pipeTypes)
+                    PipeTypeComboBox.Items.Add(new ComboBoxItem { Content = p.EwsPipeTypeName ?? "", Tag = p.EwsPipeTypeId ?? "" });
 
-                if (CompanyComboBox.Items.Count > 0)
-                    CompanyComboBox.SelectedIndex = 0;
+                _diameters = _ewsService.GetAllEwsDiameters();
+                DiameterComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
+                foreach (var d in _diameters)
+                    DiameterComboBox.Items.Add(new ComboBoxItem { Content = d.EwsDiameter1 ?? "", Tag = d.EwsDiameterId ?? "" });
+
+                _pkdiameters = _ewsService.GetAllEwsPkdiameters();
+                PKDiameterComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
+                foreach (var pkd in _pkdiameters)
+                    PKDiameterComboBox.Items.Add(new ComboBoxItem { Content = pkd.EwsPkdiameter1 ?? "", Tag = pkd.EwsPkdiameterId ?? "" });
+
+                _addressObjects = _ewsService.GetAllAdressObjects();
+                AddressObjectComboBox.Items.Add(new ComboBoxItem { Content = "(не выбран)", Tag = "" });
+                foreach (var a in _addressObjects)
+                    AddressObjectComboBox.Items.Add(new ComboBoxItem { Content = a.AdressObjectName ?? "", Tag = a.AdressObjectId ?? "" });
+
+                _organizations = _ewsService.GetAllOrganizations();
+                CompanyComboBox.Items.Add(new ComboBoxItem { Content = "(не выбрана)", Tag = "" });
+                foreach (var org in _organizations)
+                    CompanyComboBox.Items.Add(new ComboBoxItem { Content = org.OrganizationNameShort ?? "", Tag = org.OrganizationId ?? "0" });
+
+                _statuses = _ewsService.GetAllCEwsStatuses();
+                foreach (var s in _statuses)
+                    StatusComboBox.Items.Add(new ComboBoxItem { Content = s.EwsStatusName ?? "", Tag = s.EwsStatusId ?? "" });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки списка принадлежностей: {ex.Message}");
+                MessageBox.Show($"Ошибка загрузки справочных данных: {ex.Message}");
             }
         }
 
@@ -75,7 +95,6 @@ namespace ZoneHydrantEditor
                 if (!string.IsNullOrEmpty(address) && address != "Адрес не найден")
                 {
                     GidrantAdresTextBox.Text = address;
-                    GidrantAdres = address;
                     GidrantAdresTextBox.Background = System.Windows.Media.Brushes.LightGreen;
                     await Task.Delay(500);
                     GidrantAdresTextBox.Background = System.Windows.Media.Brushes.White;
@@ -84,7 +103,6 @@ namespace ZoneHydrantEditor
                 {
                     string coordsAddress = $"Координаты: {Latitude.Value:F6}, {Longitude.Value:F6}";
                     GidrantAdresTextBox.Text = coordsAddress;
-                    GidrantAdres = coordsAddress;
                     GidrantAdresTextBox.Background = System.Windows.Media.Brushes.LightYellow;
                 }
             }
@@ -103,55 +121,45 @@ namespace ZoneHydrantEditor
 
         private void AddMarkerWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            GidrantNumberTextBox.Text = GidrantNumber ?? "";
-            GidrantTrubaTextBox.Text = GidrantTruba ?? "";
-            GidrantAdresTextBox.Text = GidrantAdres ?? "";
+            GidrantNumberTextBox.Text = EditEwss.EwsNumber ?? "";
 
-            if (!string.IsNullOrEmpty(CompanyName))
-            {
-                foreach (ComboBoxItem item in CompanyComboBox.Items)
-                {
-                    if (item.Content.ToString() == CompanyName)
-                    {
-                        item.IsSelected = true;
-                        break;
-                    }
-                }
-            }
+            SelectComboBoxItemByTag(TypeComboBox, EditEwss.EwsTypeCod);
+            SelectComboBoxItemByTag(PipeTypeComboBox, EditEwss.EwsPipeTypeCod);
+            SelectComboBoxItemByTag(DiameterComboBox, EditEwss.EwsDiameterCod);
+            SelectComboBoxItemByTag(PKDiameterComboBox, EditEwss.EwsPkdiameterCod);
+            SelectComboBoxItemByTag(AddressObjectComboBox, EditEwss.EwsAdressObjectCod);
+            HouseNumberTextBox.Text = EditEwss.EwsHouseNumber ?? "";
+            AddressNoteTextBox.Text = EditEwss.EwsAdressNote ?? "";
+            GidrantAdresTextBox.Text = EditEwss.AddressText ?? "";
+            SelectComboBoxItemByTag(CompanyComboBox, EditEwss.EwsOrganizationCod);
+            SelectComboBoxItemByTag(StatusComboBox, EditEwss.EwsStatusCod);
+            NotesTextBox.Text = EditEwss.EwsNotes ?? "";
 
-            string statusToSelect = Status ?? "Непроверенный";
-            foreach (ComboBoxItem item in StatusComboBox.Items)
-            {
-                if (item.Content.ToString() == statusToSelect)
-                {
-                    item.IsSelected = true;
-                    break;
-                }
-            }
-
-            UpdateBreakReasonVisibility(statusToSelect);
-
-            if (!string.IsNullOrEmpty(BreakReason))
-            {
-                foreach (ComboBoxItem item in BreakReasonComboBox.Items)
-                {
-                    if (item.Content.ToString() == BreakReason)
-                    {
-                        item.IsSelected = true;
-                        break;
-                    }
-                }
-            }
+            if (StatusComboBox.SelectedIndex < 0 && StatusComboBox.Items.Count > 0)
+                StatusComboBox.SelectedIndex = 0;
 
             _isLoaded = true;
 
-            if (Latitude.HasValue && Longitude.HasValue && string.IsNullOrEmpty(GidrantAdres))
+            if (Latitude.HasValue && Longitude.HasValue && string.IsNullOrEmpty(EditEwss.AddressText))
             {
                 Dispatcher.BeginInvoke(new Action(async () =>
                 {
                     await Task.Delay(100);
                     await ResolveAddressAsync();
                 }));
+            }
+        }
+
+        private static void SelectComboBoxItemByTag(ComboBox combo, string? tagValue)
+        {
+            if (string.IsNullOrEmpty(tagValue)) return;
+            foreach (ComboBoxItem item in combo.Items)
+            {
+                if (item.Tag?.ToString() == tagValue)
+                {
+                    item.IsSelected = true;
+                    return;
+                }
             }
         }
 
@@ -164,7 +172,6 @@ namespace ZoneHydrantEditor
             {
                 string newCompany = dialog.Answer.Trim();
 
-                // Проверяем, нет ли уже такой
                 bool exists = false;
                 foreach (ComboBoxItem item in CompanyComboBox.Items)
                 {
@@ -184,10 +191,7 @@ namespace ZoneHydrantEditor
 
                 try
                 {
-                    // Сохраняем в БД
-                    _dbService.AddCompany(newCompany);
-
-                    // Добавляем в выпадающий список
+                    _ewsService.AddOrganization(newCompany);
                     var newItem = new ComboBoxItem { Content = newCompany };
                     CompanyComboBox.Items.Add(newItem);
                     CompanyComboBox.SelectedItem = newItem;
@@ -200,57 +204,21 @@ namespace ZoneHydrantEditor
             }
         }
 
-        private void StatusComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!_isLoaded) return;
-
-            if (StatusComboBox.SelectedItem is ComboBoxItem selectedItem)
-            {
-                UpdateBreakReasonVisibility(selectedItem.Content.ToString());
-            }
-        }
-
-        private void UpdateBreakReasonVisibility(string status)
-        {
-            if (BreakReasonLabel == null || BreakReasonComboBox == null)
-                return;
-
-            if (status == "Неисправный")
-            {
-                BreakReasonLabel.Visibility = Visibility.Visible;
-                BreakReasonComboBox.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                BreakReasonLabel.Visibility = Visibility.Collapsed;
-                BreakReasonComboBox.Visibility = Visibility.Collapsed;
-                BreakReason = null;
-
-                if (BreakReasonComboBox.SelectedItem != null)
-                {
-                    BreakReasonComboBox.SelectedItem = null;
-                }
-            }
-        }
-
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            GidrantNumber = GidrantNumberTextBox.Text;
-            GidrantTruba = GidrantTrubaTextBox.Text;
-            GidrantAdres = GidrantAdresTextBox.Text;
-            CompanyName = (CompanyComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Бесхозный";
-            Status = (StatusComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Непроверенный";
+            EditEwss.EwsNumber = GidrantNumberTextBox.Text;
+            EditEwss.EwsTypeCod = (TypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            EditEwss.EwsPipeTypeCod = (PipeTypeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            EditEwss.EwsDiameterCod = (DiameterComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            EditEwss.EwsPkdiameterCod = (PKDiameterComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            EditEwss.EwsAdressObjectCod = (AddressObjectComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            EditEwss.EwsHouseNumber = HouseNumberTextBox.Text;
+            EditEwss.EwsAdressNote = AddressNoteTextBox.Text;
+            EditEwss.EwsOrganizationCod = (CompanyComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            EditEwss.EwsStatusCod = (StatusComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            EditEwss.EwsNotes = NotesTextBox.Text;
 
-            if (Status == "Неисправный")
-            {
-                BreakReason = (BreakReasonComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString();
-            }
-            else
-            {
-                BreakReason = null;
-            }
-
-            if (string.IsNullOrWhiteSpace(GidrantNumber))
+            if (string.IsNullOrWhiteSpace(EditEwss.EwsNumber))
             {
                 MessageBox.Show("Пожалуйста, введите номер гидранта.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;

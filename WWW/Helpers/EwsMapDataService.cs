@@ -5,7 +5,6 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using TestDbApp.Models;
-using ZoneHydrantEditor.Models;
 
 namespace ZoneHydrantEditor.Helpers
 {
@@ -20,21 +19,6 @@ namespace ZoneHydrantEditor.Helpers
             _connection.Open();
         }
 
-        private static int GetStableMarkerId(string? ewsId)
-        {
-            if (string.IsNullOrEmpty(ewsId)) return 0;
-            unchecked
-            {
-                uint hash = 2166136261;
-                foreach (char c in ewsId)
-                {
-                    hash ^= c;
-                    hash *= 16777619;
-                }
-                return (int)(hash & 0x7FFFFFFF);
-            }
-        }
-
         public void Dispose()
         {
             if (_connection.State != ConnectionState.Closed)
@@ -42,6 +26,7 @@ namespace ZoneHydrantEditor.Helpers
             _connection.Dispose();
         }
 
+        #region Query helpers
         public List<Ewss> GetAllEwss() => Query<Ewss>("EWSs");
         public List<_05Organization> GetAllOrganizations() => Query<_05Organization>("05_Organizations");
         public List<_04AdressObject> GetAllAdressObjects() => Query<_04AdressObject>("04_AdressObject");
@@ -78,8 +63,67 @@ namespace ZoneHydrantEditor.Helpers
         public List<КопияEwssCheck> GetAllCopyEwssChecks() => Query<КопияEwssCheck>("Копия EWSs_Checks");
         public List<ОшибкиВставки> GetAllInsertErrors() => Query<ОшибкиВставки>("Ошибки вставки");
         public List<ОшибкиСохраненияПриАвтозаменеИмен> GetAllAutoRenameErrors() => Query<ОшибкиСохраненияПриАвтозаменеИмен>("Ошибки сохранения при автозамене имен");
+        #endregion
 
-        public List<MarkerInfo> GetAllHydrantsAsMarkers()
+        #region Ewss CRUD
+        public void InsertEwss(Ewss ewss)
+        {
+            using var cmd = new SQLiteCommand(@"
+                INSERT INTO EWSs (EWS_ID, EWS_Number, EWS_GeoCoord_X, EWS_GeoCoord_Y,
+                    EWS_Type_COD, EWS_PipeType_COD, EWS_Diameter_COD, EWS_PKDiameter_COD,
+                    EWS_AdressObject_COD, EWS_HouseNumber, EWS_AdressNote,
+                    EWS_Organization_COD, EWS_Status_COD,
+                    EWS_Priviazka, EWS_Priviazka_GeoX, EWS_Priviazka_GeoY,
+                    EWS_Notes, EWS_Map_ID, Record_Created, Record_User_COD, Record_Status, EWS_FireUnit_COD)
+                VALUES (@id, @num, @lat, @lng,
+                    @type, @pipe, @diam, @pkdiam,
+                    @addrObj, @house, @addrNote,
+                    @org, @status,
+                    @priv, @privX, @privY,
+                    @notes, @mapId, @created, @user, @recStatus, @fireUnit)",
+                _connection);
+            AddEwssParams(cmd, ewss);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void UpdateEwss(Ewss ewss)
+        {
+            using var cmd = new SQLiteCommand(@"
+                UPDATE EWSs SET
+                    EWS_Number = @num, EWS_GeoCoord_X = @lat, EWS_GeoCoord_Y = @lng,
+                    EWS_Type_COD = @type, EWS_PipeType_COD = @pipe, EWS_Diameter_COD = @diam,
+                    EWS_PKDiameter_COD = @pkdiam,
+                    EWS_AdressObject_COD = @addrObj, EWS_HouseNumber = @house, EWS_AdressNote = @addrNote,
+                    EWS_Organization_COD = @org, EWS_Status_COD = @status,
+                    EWS_Priviazka = @priv, EWS_Priviazka_GeoX = @privX, EWS_Priviazka_GeoY = @privY,
+                    EWS_Notes = @notes, EWS_Map_ID = @mapId, Record_User_COD = @user, Record_Status = @recStatus,
+                    EWS_FireUnit_COD = @fireUnit
+                WHERE EWS_ID = @id",
+                _connection);
+            AddEwssParams(cmd, ewss);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void DeleteEwss(string ewsId)
+        {
+            using var cmd = new SQLiteCommand("DELETE FROM EWSs WHERE EWS_ID = @id", _connection);
+            cmd.Parameters.AddWithValue("@id", ewsId);
+            cmd.ExecuteNonQuery();
+        }
+
+        public Ewss? GetEwssById(string ewsId)
+        {
+            var all = GetAllEwss();
+            return all.FirstOrDefault(e => e.EwsId == ewsId);
+        }
+
+        public Ewss? GetEwssByMarkerId(int markerId)
+        {
+            var all = GetAllEwss();
+            return all.FirstOrDefault(e => Utility.GetStableMarkerId(e.EwsId) == markerId);
+        }
+
+        public List<Ewss> GetAllEwssWithDisplay()
         {
             var ewss = GetAllEwss();
             var orgs = GetAllOrganizations().ToDictionary(o => o.OrganizationId, o => o.OrganizationNameShort ?? "");
@@ -89,37 +133,101 @@ namespace ZoneHydrantEditor.Helpers
             var pipeTypes = GetAllEwsPipeTypes().ToDictionary(p => p.EwsPipeTypeId, p => p.EwsPipeTypeName ?? "");
             var addresses = GetAllAdressObjects().ToDictionary(a => a.AdressObjectId, a => a.AdressObjectName ?? "");
 
-            return ewss.Select(e =>
+            foreach (var e in ewss)
             {
-                var truba = new List<string>();
-                if (e.EwsPipeTypeCod != null && pipeTypes.TryGetValue(e.EwsPipeTypeCod, out var pt))
-                    truba.Add(pt);
-                if (e.EwsDiameterCod != null && diameters.TryGetValue(e.EwsDiameterCod, out var d))
-                    truba.Add(d);
+                e.OrganizationName = e.EwsOrganizationCod != null && orgs.TryGetValue(e.EwsOrganizationCod, out var org) ? org : "Бесхозный";
+                e.StatusName = e.EwsStatusCod != null && statuses.TryGetValue(e.EwsStatusCod, out var st) ? st : "Непроверенный";
 
-                var address = new List<string>();
+                var addrParts = new List<string>();
                 if (e.EwsAdressObjectCod != null && addresses.TryGetValue(e.EwsAdressObjectCod, out var addr))
-                    address.Add(addr);
+                    addrParts.Add(addr);
                 if (!string.IsNullOrWhiteSpace(e.EwsHouseNumber))
-                    address.Add(e.EwsHouseNumber);
+                    addrParts.Add(e.EwsHouseNumber);
                 if (!string.IsNullOrWhiteSpace(e.EwsAdressNote))
-                    address.Add(e.EwsAdressNote);
+                    addrParts.Add(e.EwsAdressNote);
+                e.AddressText = string.Join(", ", addrParts);
 
-                return new MarkerInfo
-                {
-                    Id = GetStableMarkerId(e.EwsId),
-                    Latitude = (double)(e.EwsGeoCoordX ?? 0),
-                    Longitude = (double)(e.EwsGeoCoordY ?? 0),
-                    GidrantNumber = e.EwsNumber ?? "",
-                    GidrantTruba = string.Join(" ", truba),
-                    GidrantAdres = string.Join(", ", address),
-                    CompanyName = e.EwsOrganizationCod != null && orgs.TryGetValue(e.EwsOrganizationCod, out var org) ? org : "Бесхозный",
-                    Status = e.EwsStatusCod != null && statuses.TryGetValue(e.EwsStatusCod, out var st) ? st : "Непроверенный",
-                    BreakReason = ""
-                };
-            }).ToList();
+                var trubaParts = new List<string>();
+                if (e.EwsPipeTypeCod != null && pipeTypes.TryGetValue(e.EwsPipeTypeCod, out var pt))
+                    trubaParts.Add(pt);
+                if (e.EwsDiameterCod != null && diameters.TryGetValue(e.EwsDiameterCod, out var d))
+                    trubaParts.Add(d);
+                e.PipeInfo = string.Join(" ", trubaParts);
+
+                e.DisplayNumber = e.EwsNumber ?? "";
+            }
+            return ewss;
         }
 
+        private static void AddEwssParams(SQLiteCommand cmd, Ewss ewss)
+        {
+            cmd.Parameters.AddWithValue("@id", (object)ewss.EwsId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@num", (object)ewss.EwsNumber ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@lat", (object)ewss.EwsGeoCoordX ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@lng", (object)ewss.EwsGeoCoordY ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@type", (object)ewss.EwsTypeCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@pipe", (object)ewss.EwsPipeTypeCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@diam", (object)ewss.EwsDiameterCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@pkdiam", (object)ewss.EwsPkdiameterCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@addrObj", (object)ewss.EwsAdressObjectCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@house", (object)ewss.EwsHouseNumber ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@addrNote", (object)ewss.EwsAdressNote ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@org", (object)ewss.EwsOrganizationCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@status", (object)ewss.EwsStatusCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@priv", (object)ewss.EwsPriviazka ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@privX", (object)ewss.EwsPriviazkaGeoX ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@privY", (object)ewss.EwsPriviazkaGeoY ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@notes", (object)ewss.EwsNotes ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@mapId", (object)ewss.EwsMapId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@created", (object)ewss.RecordCreated ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@user", (object)ewss.RecordUserCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@recStatus", (object)ewss.RecordStatus ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@fireUnit", (object)ewss.EwsFireUnitCod ?? DBNull.Value);
+        }
+        #endregion
+
+        #region Binding operations (Ewss fields)
+        public void UpdateEwssBinding(string ewsId, string? priviazka, string? geoX, string? geoY)
+        {
+            using var cmd = new SQLiteCommand(
+                "UPDATE EWSs SET EWS_Priviazka = @priv, EWS_Priviazka_GeoX = @geoX, EWS_Priviazka_GeoY = @geoY WHERE EWS_ID = @id",
+                _connection);
+            cmd.Parameters.AddWithValue("@id", ewsId);
+            cmd.Parameters.AddWithValue("@priv", (object)priviazka ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@geoX", (object)geoX ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@geoY", (object)geoY ?? DBNull.Value);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void ClearEwssBinding(string ewsId)
+        {
+            using var cmd = new SQLiteCommand(
+                "UPDATE EWSs SET EWS_Priviazka = NULL, EWS_Priviazka_GeoX = NULL, EWS_Priviazka_GeoY = NULL WHERE EWS_ID = @id",
+                _connection);
+            cmd.Parameters.AddWithValue("@id", ewsId);
+            cmd.ExecuteNonQuery();
+        }
+        #endregion
+
+        #region Organization operations
+        public void AddOrganization(string name)
+        {
+            var maxId = GetAllOrganizations()
+                .Select(o => int.TryParse(o.OrganizationId, out var id) ? id : 0)
+                .DefaultIfEmpty(0)
+                .Max() + 1;
+
+            using var cmd = new SQLiteCommand(
+                "INSERT INTO 05_Organizations (Organization_ID, Organization_NameShort, Organization_NameFull) VALUES (@id, @short, @full)",
+                _connection);
+            cmd.Parameters.AddWithValue("@id", maxId.ToString());
+            cmd.Parameters.AddWithValue("@short", name);
+            cmd.Parameters.AddWithValue("@full", name);
+            cmd.ExecuteNonQuery();
+        }
+        #endregion
+
+        #region Generic Query
         private List<T> Query<T>(string tableName) where T : new()
         {
             var result = new List<T>();
@@ -313,5 +421,6 @@ namespace ZoneHydrantEditor.Helpers
             {
             }
         }
+        #endregion
     }
 }

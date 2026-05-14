@@ -1,13 +1,12 @@
 ﻿using GMap.NET;
-using GMap.NET.MapProviders;
 using GMap.NET.WindowsPresentation;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using TestDbApp.Models;
 using ZoneHydrantEditor.GraphicElements;
 using ZoneHydrantEditor.Helpers;
-using ZoneHydrantEditor.Models;
 
 namespace ZoneHydrantEditor
 {
@@ -33,7 +32,7 @@ namespace ZoneHydrantEditor
             }
         }
 
-        public void AddCell(GridCellData cell, Dictionary<int, List<BindingInfo>> bindingCache, int index)
+        public void AddCell(GridCellData cell, int index)
         {
             int col = index % Columns;
             int row = index / Columns;
@@ -53,13 +52,13 @@ namespace ZoneHydrantEditor
             Canvas.SetTop(cellBorder, y);
             CellsCanvas.Children.Add(cellBorder);
 
-            var cellContent = CreateCellContent(cell, bindingCache);
+            var cellContent = CreateCellContent(cell);
             Canvas.SetLeft(cellContent, x);
             Canvas.SetTop(cellContent, y);
             CellsCanvas.Children.Add(cellContent);
         }
 
-        private FrameworkElement CreateCellContent(GridCellData cell, Dictionary<int, List<BindingInfo>> bindingCache)
+        private FrameworkElement CreateCellContent(GridCellData cell)
         {
             var grid = new Grid
             {
@@ -106,12 +105,15 @@ namespace ZoneHydrantEditor
                 miniMap.Position = new PointLatLng(cell.Latitude, cell.Longitude);
                 miniMap.Zoom = 16;
                 miniMap.Markers.Add(CreateMiniMapMarker(cell));
-                if (bindingCache.TryGetValue(cell.HydrantId, out var bindings))
-                    foreach (var binding in bindings)
-                        miniMap.Markers.Add(CreateMiniMapBinding(binding));
+                if (!string.IsNullOrEmpty(cell.EwsPriviazka))
+                {
+                    var coord = Utility.ParseBindingCoord(cell.EwsPriviazka);
+                    if (coord != null)
+                        miniMap.Markers.Add(CreateMiniMapBinding(coord.Value.lat, coord.Value.lng, cell.EwsId));
+                }
             };
 
-            var overlay = CreateOverlayCanvas(cell, bindingCache);
+            var overlay = CreateOverlayCanvas(cell);
             var container = new Grid();
             container.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             container.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -129,7 +131,7 @@ namespace ZoneHydrantEditor
             return grid;
         }
 
-        private static Canvas CreateOverlayCanvas(GridCellData cell, Dictionary<int, List<BindingInfo>> bindingCache)
+        private Canvas CreateOverlayCanvas(GridCellData cell)
         {
             var canvas = new Canvas
             {
@@ -149,7 +151,7 @@ namespace ZoneHydrantEditor
                 BorderBrush = Brushes.Black,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
-                Child = CreateCrossCanvas(cell, bindingCache, size)
+                Child = CreateCrossCanvas(cell, size)
             };
 
             Canvas.SetLeft(crossBorder, 10);
@@ -161,46 +163,50 @@ namespace ZoneHydrantEditor
             return canvas;
         }
 
-        private static Canvas CreateCrossCanvas(GridCellData cell, Dictionary<int, List<BindingInfo>> bindingCache, double size)
+        private static Canvas CreateCrossCanvas(GridCellData cell, double size)
         {
             var canvas = new Canvas { Width = size, Height = size, SnapsToDevicePixels = true };
             double cx = size / 2, cy = size / 2, arm = size * 0.35;
 
-
             canvas.Children.Add(new Line { X1 = cx, Y1 = cy - arm, X2 = cx, Y2 = cy + arm, Stroke = Brushes.Black, StrokeThickness = 2, SnapsToDevicePixels = true });
             canvas.Children.Add(new Line { X1 = cx - arm, Y1 = cy, X2 = cx + arm, Y2 = cy, Stroke = Brushes.Black, StrokeThickness = 2, SnapsToDevicePixels = true });
 
-            if (bindingCache.TryGetValue(cell.HydrantId, out var bindings) && bindings.Count > 0)
+            if (!string.IsNullOrEmpty(cell.EwsPriviazka))
             {
-                var binding = bindings.First();
+                var coord = Utility.ParseBindingCoord(cell.EwsPriviazka);
+                if (coord != null)
+                {
+                    canvas.Children.Add(new Rectangle { Width = 6, Height = 6, Fill = Brushes.Black, Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true });
+                    Canvas.SetLeft(canvas.Children[^1], cx - 3);
+                    Canvas.SetTop(canvas.Children[^1], cy - 3);
 
-                canvas.Children.Add(new Rectangle { Width = 6, Height = 6, Fill = Brushes.Black, Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true });
-                Canvas.SetLeft(canvas.Children[^1], cx - 3);
-                Canvas.SetTop(canvas.Children[^1], cy - 3);
+                    double offsetX = Math.Max(-arm, Math.Min(arm, -Utility.ParseBindingDistance(cell.EwsPriviazkaGeoY) * 0.05));
+                    double offsetY = Math.Max(-arm, Math.Min(arm, Utility.ParseBindingDistance(cell.EwsPriviazkaGeoX) * 0.05));
 
-                double offsetX = Math.Max(-arm, Math.Min(arm, -binding.DistanceY * 0.05));
-                double offsetY = Math.Max(-arm, Math.Min(arm, binding.DistanceX * 0.05));
+                    var dot = new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(Color.FromRgb(15, 11, 227)), Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true };
+                    Canvas.SetLeft(dot, cx + offsetX - 3);
+                    Canvas.SetTop(dot, cy + offsetY - 3);
+                    canvas.Children.Add(dot);
 
-                var dot = new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(Color.FromRgb(15, 11, 227)), Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true };
-                Canvas.SetLeft(dot, cx + offsetX - 3);
-                Canvas.SetTop(dot, cy + offsetY - 3);
-                canvas.Children.Add(dot);
-
-                AddDistanceInfo(canvas, binding, cx, cy, arm);
+                    AddDistanceInfo(canvas, cell, cx, cy, arm);
+                }
             }
             return canvas;
         }
 
-        private static void AddDistanceInfo(Canvas canvas, BindingInfo binding, double cx, double cy, double arm)
+        private static void AddDistanceInfo(Canvas canvas, GridCellData cell, double cx, double cy, double arm)
         {
-            AddDistanceText(canvas, Math.Abs(binding.DistanceX), cx - 8, binding.DistanceX > 0 ? cy + arm + 2 : cy - arm - 12);
-            AddDistanceText(canvas, Math.Abs(binding.DistanceY), binding.DistanceY > 0 ? cx - arm - 20 : cx + arm + 2, cy - 8);
+            double dx = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoX);
+            double dy = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoY);
 
-            if (binding.DistanceX > 0) AddArrow(canvas, new[] { new Point(cx - 3, cy + arm - 2), new Point(cx + 3, cy + arm - 2), new Point(cx, cy + arm + 2) });
-            else if (binding.DistanceX < 0) AddArrow(canvas, new[] { new Point(cx - 3, cy - arm + 2), new Point(cx + 3, cy - arm + 2), new Point(cx, cy - arm - 2) });
+            AddDistanceText(canvas, Math.Abs(dx), cx - 8, dx > 0 ? cy + arm + 2 : cy - arm - 12);
+            AddDistanceText(canvas, Math.Abs(dy), dy > 0 ? cx - arm - 20 : cx + arm + 2, cy - 8);
 
-            if (binding.DistanceY > 0) AddArrow(canvas, new[] { new Point(cx - arm + 2, cy - 3), new Point(cx - arm + 2, cy + 3), new Point(cx - arm - 2, cy) });
-            else if (binding.DistanceY < 0) AddArrow(canvas, new[] { new Point(cx + arm - 2, cy - 3), new Point(cx + arm - 2, cy + 3), new Point(cx + arm + 2, cy) });
+            if (dx > 0) AddArrow(canvas, new[] { new Point(cx - 3, cy + arm - 2), new Point(cx + 3, cy + arm - 2), new Point(cx, cy + arm + 2) });
+            else if (dx < 0) AddArrow(canvas, new[] { new Point(cx - 3, cy - arm + 2), new Point(cx + 3, cy - arm + 2), new Point(cx, cy - arm - 2) });
+
+            if (dy > 0) AddArrow(canvas, new[] { new Point(cx - arm + 2, cy - 3), new Point(cx - arm + 2, cy + 3), new Point(cx - arm - 2, cy) });
+            else if (dy < 0) AddArrow(canvas, new[] { new Point(cx + arm - 2, cy - 3), new Point(cx + arm - 2, cy + 3), new Point(cx + arm + 2, cy) });
         }
 
         private static void AddDistanceText(Canvas canvas, double value, double x, double y)
@@ -226,18 +232,21 @@ namespace ZoneHydrantEditor
             canvas.Children.Add(new Polygon { Points = new PointCollection(points), Fill = Brushes.Black, Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true });
         }
 
-        private static GMapMarker CreateMiniMapMarker(GridCellData cell) =>
-            HydrantMarker.CreateSimpleMarker(new MarkerInfo
+        private static GMapMarker CreateMiniMapMarker(GridCellData cell)
+        {
+            var ewss = new Ewss
             {
-                Id = cell.HydrantId,
-                Latitude = cell.Latitude,
-                Longitude = cell.Longitude,
-                GidrantNumber = cell.HydrantNumber,
-                GidrantTruba = cell.HydrantTruba,
-                Status = cell.Status,
-                BreakReason = cell.BreakReason
-            });
+                EwsId = cell.EwsId,
+                EwsNumber = cell.HydrantNumber,
+                EwsGeoCoordX = (decimal)cell.Latitude,
+                EwsGeoCoordY = (decimal)cell.Longitude
+            };
+            ewss.StatusName = cell.Status;
+            ewss.PipeInfo = cell.HydrantTruba;
+            ewss.DisplayNumber = cell.HydrantNumber;
+            return HydrantMarker.CreateSimpleMarker(ewss);
+        }
 
-        private static GMapMarker CreateMiniMapBinding(BindingInfo binding) => BindingMarker.CreateSimpleBinding(binding);
+        private static GMapMarker CreateMiniMapBinding(double lat, double lng, string ewsId) => BindingMarker.CreateSimpleBinding(lat, lng, ewsId);
     }
 }

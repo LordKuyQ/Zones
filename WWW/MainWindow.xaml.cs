@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using TestDbApp.Models;
 using ZoneHydrantEditor.GraphicElements;
 using ZoneHydrantEditor.Helpers;
 using ZoneHydrantEditor.Models;
@@ -59,7 +60,7 @@ namespace ZoneHydrantEditor
             InitializeComponent();
             _dbService = new DatabaseService();
             _ewsService = new EwsMapDataService();
-            _backupService = new BackupService(_dbService, ZonesDbFile, HydrantsDbFile);
+            _backupService = new BackupService(_dbService, _ewsService, ZonesDbFile);
             _routingService = new RoutingService();
             _geocodingService = new GeocodingHelper();
             _routingService.RouteBuilt += OnRouteBuilt;
@@ -88,8 +89,6 @@ namespace ZoneHydrantEditor
                 LoadAllZonesInEditor();
                 HighlightCurrentZoneInEditor();
             }
-            var ewsMarkers = _ewsService.GetAllHydrantsAsMarkers();
-            _dbService.SyncMarkers(ewsMarkers);
             UpdateMarkersZoneInfo();
             LoadHydrantsFromDatabase();
             LoadBindingsFromDatabase();
@@ -672,33 +671,40 @@ namespace ZoneHydrantEditor
         {
             try
             {
-                var allMarkers = _dbService.GetAllMarkers();
-                var allZones = _dbService.GetAllZoneBounds();
-
-                foreach (var marker in allMarkers)
-                {
-                    int? zoneId = null;
-
-                    foreach (var zone in allZones)
-                    {
-                        if (zone.HasValidBounds && IsPointInZone(zone.ZoneId, marker.Latitude, marker.Longitude))
-                        {
-                            zoneId = zone.ZoneId;
-                            break;
-                        }
-                    }
-
-                    if (marker.ZoneId != zoneId)
-                    {
-                        _dbService.UpdateMarkerZoneInfo(marker.Id, zoneId);
-                    }
-                }
-                LoadMarkersToDataGrid();
+                var ewssList = _ewsService.GetAllEwssWithDisplay();
+                AssignZoneIds(ewssList);
+                LoadMarkersToDataGrid(ewssList);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка при обновлении зон маркеров: {ex.Message}");
             }
+        }
+
+        private void AssignZoneIds(List<Ewss> ewssList)
+        {
+            var allZones = _dbService.GetAllZoneBounds();
+            foreach (var ewss in ewssList)
+            {
+                int? zoneId = null;
+                foreach (var zone in allZones)
+                {
+                    if (zone.HasValidBounds && IsPointInZone(zone.ZoneId, ewss.LatitudeD, ewss.LongitudeD))
+                    {
+                        zoneId = zone.ZoneId;
+                        break;
+                    }
+                }
+                ewss.ZoneId = zoneId;
+            }
+        }
+
+        private List<Ewss> GetHydrantsInZone(int zoneId)
+        {
+            var all = _ewsService.GetAllEwssWithDisplay();
+            var zonePoints = _dbService.GetZonePoints(zoneId);
+            if (zonePoints.Count < 3) return new List<Ewss>();
+            return all.Where(e => IsPointInPolygon(new PointLatLng(e.LatitudeD, e.LongitudeD), zonePoints)).ToList();
         }
 
         private bool IsPointInZone(int zoneId, double lat, double lng)
@@ -766,11 +772,17 @@ namespace ZoneHydrantEditor
 
                 if (addWindow.ShowDialog() == true)
                 {
-                    var (zoneId, zoneName) = GetZoneInfoForPoint(point.Lat, point.Lng);
-                    int newId = _dbService.SaveMarker(point.Lat, point.Lng, addWindow.GidrantNumber, addWindow.GidrantTruba,
-                        addWindow.GidrantAdres, addWindow.CompanyName, addWindow.Status, addWindow.BreakReason, zoneId);
+                    var ewss = addWindow.EditEwss;
+                    ewss.EwsGeoCoordX = (decimal)point.Lat;
+                    ewss.EwsGeoCoordY = (decimal)point.Lng;
+                    ewss.EwsId = Guid.NewGuid().ToString("N");
+                    ewss.RecordCreated = DateTime.Now;
+                    ewss.RecordStatus = "active";
+                    _ewsService.InsertEwss(ewss);
 
-                    AddOrUpdateHydrantMarker(newId, point.Lat, point.Lng, addWindow.GidrantNumber, addWindow.GidrantTruba, addWindow.Status);
+                    var (zoneId, zoneName) = GetZoneInfoForPoint(point.Lat, point.Lng);
+                    ewss.ZoneId = zoneId;
+                    AddOrUpdateHydrantMarker(ewss);
                     MessageBox.Show($"Маркер гидранта добавлен\n{(zoneId.HasValue ? $"Общий план: {zoneName}" : "Находится вне общего плана")}");
                 }
             }
@@ -781,20 +793,12 @@ namespace ZoneHydrantEditor
             e.Handled = true;
         }
 
-        private void AddOrUpdateHydrantMarker(int id, double lat, double lng, string number, string truba, string status)
+        private void AddOrUpdateHydrantMarker(Ewss ewss)
         {
+            var id = ewss.MarkerId;
             var existing = HydrantMap.Markers.FirstOrDefault(m => m.Tag is int markerId && markerId == id);
             if (existing != null) HydrantMap.Markers.Remove(existing);
-            var markerInfo = new MarkerInfo
-            {
-                Id = id,
-                Latitude = lat,
-                Longitude = lng,
-                GidrantNumber = number,
-                GidrantTruba = truba,
-                Status = status
-            };
-            var marker = HydrantMarker.CreateMarker(markerInfo, (int)HydrantMap.Zoom);
+            var marker = HydrantMarker.CreateMarker(ewss, (int)HydrantMap.Zoom);
 
             if (marker.Shape is Canvas canvas)
             {
@@ -806,8 +810,8 @@ namespace ZoneHydrantEditor
         private void ShowMarkerContextMenu(GMapMarker marker)
         {
             if (marker.Tag is not int markerId) return;
-            var markerInfo = _dbService.GetMarkerById(markerId);
-            if (markerInfo == null) return;
+            var ewss = _ewsService.GetAllEwss().FirstOrDefault(e => e.MarkerId == markerId);
+            if (ewss == null) return;
 
             var menu = HydrantContextMenu.Create(
                 onShowInfo: () => ShowMarkerInfo(marker),
@@ -818,7 +822,7 @@ namespace ZoneHydrantEditor
                 onMoveBinding: () => StartMovingBindingForMarker(marker),
                 onDeleteBinding: () => DeleteBindingForMarker(marker),
                 onStartRoute: () => StartRouteFromMarker(marker),
-                hasBinding: _dbService.HasExistingBinding(markerId));
+                hasBinding: !string.IsNullOrEmpty(ewss.EwsPriviazka));
 
             if (marker.Shape is FrameworkElement element) element.ContextMenu = menu;
             menu.IsOpen = true;
@@ -847,9 +851,12 @@ namespace ZoneHydrantEditor
 
             try
             {
+                var ewss = _ewsService.GetAllEwss().FirstOrDefault(e => e.MarkerId == hydrantId);
+                if (ewss == null) return;
+
                 HydrantMap.Markers.Remove(hydrantMarker);
-                _dbService.DeleteMarker(hydrantId);
-                var bindingToRemove = bindingMarkers.FirstOrDefault(b => GetHydrantIdForBinding(b) == hydrantId);
+                _ewsService.DeleteEwss(ewss.EwsId);
+                var bindingToRemove = bindingMarkers.FirstOrDefault(b => GetEwssIdForBinding(b) == ewss.EwsId);
 
                 if (bindingToRemove != null)
                 {
@@ -868,43 +875,39 @@ namespace ZoneHydrantEditor
         private void ShowMarkerInfo(GMapMarker marker)
         {
             if (marker?.Tag is not int id) return;
-            var info = _dbService.GetMarkerById(id);
-            if (info == null) return;
+            var ewss = _ewsService.GetAllEwssWithDisplay().FirstOrDefault(e => e.MarkerId == id);
+            if (ewss == null) return;
 
-            string zoneName = info.ZoneId.HasValue ? zonesDictionary.GetValueOrDefault(info.ZoneId.Value, $"Зона {info.ZoneId}") : "Вне общего плана";
-            string info1 = $"Номер: {info.GidrantNumber}\nДиаметр: {info.GidrantTruba}\nАдрес: {info.GidrantAdres}\n" +
-                         $"Принадлежность: {info.CompanyName}\nОбщий план: {zoneName}\n" +
-                         $"Статус: {info.Status}{(info.Status == "Неисправный" && !string.IsNullOrEmpty(info.BreakReason) ? $"\nПричина: {info.BreakReason}" : "")}";
+            string zoneName = ewss.ZoneId.HasValue ? zonesDictionary.GetValueOrDefault(ewss.ZoneId.Value, $"Зона {ewss.ZoneId}") : "Вне общего плана";
+            string info1 = $"Номер: {ewss.DisplayNumber}\nДиаметр: {ewss.PipeInfo}\nАдрес: {ewss.AddressText}\n" +
+                         $"Принадлежность: {ewss.OrganizationName}\nОбщий план: {zoneName}\n" +
+                         $"Статус: {ewss.StatusName}\n" +
+                         $"Привязка: {(string.IsNullOrEmpty(ewss.EwsPriviazka) ? "Нет" : $"Да ({ewss.EwsPriviazka})")}";
             MessageBox.Show(info1, "Информация о гидранте");
         }
 
         private void EditMarkerInfo(GMapMarker marker)
         {
             if (marker?.Tag is not int id) return;
-            var existing = _dbService.GetMarkerById(id);
+            var existing = _ewsService.GetAllEwss().FirstOrDefault(e => e.MarkerId == id);
             if (existing == null) return;
 
             var editWindow = new AddMarkerWindow
             {
                 Owner = this,
-                GidrantNumber = existing.GidrantNumber,
-                GidrantTruba = existing.GidrantTruba,
-                GidrantAdres = existing.GidrantAdres,
-                CompanyName = existing.CompanyName,
-                Status = existing.Status,
-                BreakReason = existing.BreakReason,
+                EditEwss = existing,
                 Latitude = marker.Position.Lat,
                 Longitude = marker.Position.Lng
             };
 
             if (editWindow.ShowDialog() != true) return;
 
-            var (zoneId, _) = GetZoneInfoForPoint(marker.Position.Lat, marker.Position.Lng);
-            _dbService.UpdateMarker(id, marker.Position.Lat, marker.Position.Lng, editWindow.GidrantNumber,
-                editWindow.GidrantTruba, editWindow.GidrantAdres, editWindow.CompanyName, editWindow.Status,
-                editWindow.BreakReason, zoneId);
+            var updated = editWindow.EditEwss;
+            updated.EwsGeoCoordX = (decimal)marker.Position.Lat;
+            updated.EwsGeoCoordY = (decimal)marker.Position.Lng;
+            _ewsService.UpdateEwss(updated);
 
-            AddOrUpdateHydrantMarker(id, marker.Position.Lat, marker.Position.Lng, editWindow.GidrantNumber, editWindow.GidrantTruba, editWindow.Status);
+            AddOrUpdateHydrantMarker(updated);
             MessageBox.Show("Информация обновлена");
         }
         #endregion
@@ -1013,26 +1016,29 @@ namespace ZoneHydrantEditor
         #region ЗАГРУЗКА ДАННЫХ ДЛЯ КАРТЫ ГИДРАНТОВ (ВКЛ2)
         private void LoadHydrantsFromDatabase()
         {
-            var markers = _dbService.GetAllMarkers();
-            foreach (var marker in markers)
+            var ewssList = _ewsService.GetAllEwssWithDisplay();
+            foreach (var ewss in ewssList)
             {
-                AddOrUpdateHydrantMarker(marker.Id, marker.Latitude, marker.Longitude, marker.GidrantNumber, marker.GidrantTruba, marker.Status);
+                AddOrUpdateHydrantMarker(ewss);
             }
         }
 
         private void LoadBindingsFromDatabase()
         {
-            var bindings = _dbService.GetAllBindings();
+            var ewssList = _ewsService.GetAllEwssWithDisplay();
             var hydrantsOnMap = HydrantMap.Markers.OfType<GMapMarker>().Where(m => m.Tag is int && !bindingMarkers.Contains(m)).ToDictionary(m => (int)m.Tag, m => m.Position);
 
             var newBindingMarkers = new List<GMapMarker>();
-            foreach (var binding in bindings)
+            foreach (var ewss in ewssList)
             {
-                if (hydrantsOnMap.TryGetValue(binding.HydrantId, out var hydrantPos))
-                {
-                    var bindingMarker = BindingMarker.CreateMarker(binding, hydrantPos, (int)HydrantMap.Zoom);
-                    newBindingMarkers.Add(bindingMarker);
-                }
+                if (string.IsNullOrEmpty(ewss.EwsPriviazka)) continue;
+                if (!hydrantsOnMap.TryGetValue(ewss.MarkerId, out var hydrantPos)) continue;
+
+                var coord = Utility.ParseBindingCoord(ewss.EwsPriviazka);
+                if (coord == null) continue;
+
+                var bindingMarker = BindingMarker.CreateMarkerFromEwss(ewss, hydrantPos, (int)HydrantMap.Zoom);
+                newBindingMarkers.Add(bindingMarker);
             }
 
             foreach (var bindingMarker in bindingMarkers)
@@ -1064,40 +1070,38 @@ namespace ZoneHydrantEditor
             try
             {
                 int markerId = (int)movingMarker.Tag;
-                var markerInfo = _dbService.GetMarkerById(markerId);
+                var ewss = _ewsService.GetAllEwssWithDisplay().FirstOrDefault(e => e.MarkerId == markerId);
+                if (ewss == null) return;
 
-                if (markerInfo == null) return;
                 var (newZoneId, newZoneName) = GetZoneInfoForPoint(newPosition.Lat, newPosition.Lng);
-                var oldBindings = _dbService.GetBindingsForHydrant(markerId);
+                ewss.ZoneId = newZoneId;
+                ewss.EwsGeoCoordX = (decimal)newPosition.Lat;
+                ewss.EwsGeoCoordY = (decimal)newPosition.Lng;
+                _ewsService.UpdateEwss(ewss);
 
-                _dbService.UpdateMarker(markerId, newPosition.Lat, newPosition.Lng, markerInfo.GidrantNumber, markerInfo.GidrantTruba, markerInfo.GidrantAdres, markerInfo.CompanyName, markerInfo.Status, markerInfo.BreakReason, newZoneId);
-
-                UpdateBindingsForMovedMarker(markerId, newPosition, oldBindings);
+                var oldBindingMarkers = bindingMarkers
+                    .Where(b => GetEwssIdForBinding(b) == ewss.EwsId)
+                    .ToList();
+                foreach (var bm in oldBindingMarkers)
+                {
+                    HydrantMap.Markers.Remove(bm);
+                    bindingMarkers.Remove(bm);
+                }
 
                 var oldMarker = HydrantMap.Markers.FirstOrDefault(m => m.Tag is int id && id == markerId);
                 if (oldMarker != null)
                     HydrantMap.Markers.Remove(oldMarker);
-                var oldBindingsToRemove = bindingMarkers
-                    .Where(b => GetHydrantIdForBinding(b) == markerId)
-                    .ToList();
-                foreach (var binding in oldBindingsToRemove)
-                {
-                    HydrantMap.Markers.Remove(binding);
-                    bindingMarkers.Remove(binding);
-                }
 
-                AddOrUpdateHydrantMarker(markerId, newPosition.Lat, newPosition.Lng, markerInfo.GidrantNumber, markerInfo.GidrantTruba, markerInfo.Status);
+                AddOrUpdateHydrantMarker(ewss);
 
-                var updatedBindings = _dbService.GetBindingsForHydrant(markerId);
-                foreach (var binding in updatedBindings)
+                if (!string.IsNullOrEmpty(ewss.EwsPriviazka))
                 {
-                    var bindingMarker = BindingMarker.CreateMarker(binding,
+                    var bindingMarker = BindingMarker.CreateMarkerFromEwss(ewss,
                         new PointLatLng(newPosition.Lat, newPosition.Lng),
                         (int)HydrantMap.Zoom);
                     HydrantMap.Markers.Add(bindingMarker);
                     bindingMarkers.Add(bindingMarker);
                 }
-                ;
 
                 MessageBox.Show($"Маркер гидранта перемещён\n{(newZoneId.HasValue ? $"Общий план: {newZoneName}" : "Находится вне общего плана")}");
             }
@@ -1112,25 +1116,28 @@ namespace ZoneHydrantEditor
             }
         }
 
-        private void UpdateBindingsForMovedMarker(int markerId, PointLatLng newPosition, List<BindingInfo> oldBindings)
+        private void UpdateBindingsForMovedMarker(Ewss ewss, PointLatLng newPosition)
         {
-            if (oldBindings.Count == 0) return;
-            _dbService.DeleteBindingForHydrant(markerId);
+            if (string.IsNullOrEmpty(ewss.EwsPriviazka)) return;
+            var coord = Utility.ParseBindingCoord(ewss.EwsPriviazka);
+            if (coord == null) return;
 
-            foreach (var binding in oldBindings)
-            {
-                double newDistanceX = (binding.Latitude - newPosition.Lat) * 111320.0;
-                double newDistanceY = (binding.Longitude - newPosition.Lng) * (111320.0 * Math.Cos(newPosition.Lat * Math.PI / 180.0));
-                _dbService.SaveBinding(binding.Latitude, binding.Longitude, newDistanceX, newDistanceY, markerId);
-            }
+            double newDistanceX = (coord.Value.lat - newPosition.Lat) * 111320.0;
+            double newDistanceY = (coord.Value.lng - newPosition.Lng) * (111320.0 * Math.Cos(newPosition.Lat * Math.PI / 180.0));
+
+            _ewsService.UpdateEwssBinding(ewss.EwsId, ewss.EwsPriviazka,
+                newDistanceX.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
+                newDistanceY.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
         }
         #endregion
 
         #region РАБОТА С ПРИВЯЗКАМИ(ВКЛ2)
         private void StartBindingProcess(GMapMarker hydrantMarker)
         {
-            int hydrantId = (int)hydrantMarker.Tag;
-            if (_dbService.HasExistingBinding(hydrantId))
+            int markerId = (int)hydrantMarker.Tag;
+            var ewss = _ewsService.GetAllEwss().FirstOrDefault(e => e.MarkerId == markerId);
+            if (ewss == null) return;
+            if (!string.IsNullOrEmpty(ewss.EwsPriviazka))
             {
                 MessageBox.Show("У этого гидранта уже есть привязка");
                 return;
@@ -1145,20 +1152,27 @@ namespace ZoneHydrantEditor
             try
             {
                 if (!isCreatingBinding || currentHydrantForBinding == null) return;
-                int hydrantId = (int)currentHydrantForBinding.Tag;
+                int markerId = (int)currentHydrantForBinding.Tag;
+                var ewss = _ewsService.GetAllEwss().FirstOrDefault(e => e.MarkerId == markerId);
+                if (ewss == null) return;
+
                 double distanceX = (bindingPoint.Lat - currentHydrantForBinding.Position.Lat) * 111320.0;
                 double distanceY = (bindingPoint.Lng - currentHydrantForBinding.Position.Lng) *
                     (111320.0 * Math.Cos(currentHydrantForBinding.Position.Lat * Math.PI / 180.0));
 
-                int newBindingId = _dbService.SaveBinding(bindingPoint.Lat, bindingPoint.Lng, distanceX, distanceY, hydrantId);
-                var newBinding = _dbService.GetBindingInfo(newBindingId);
+                string priviazka = $"{bindingPoint.Lat.ToString(System.Globalization.CultureInfo.InvariantCulture)},{bindingPoint.Lng.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+                string geoX = distanceX.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                string geoY = distanceY.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
-                if (newBinding != null)
-                {
-                    var bindingMarker = BindingMarker.CreateMarker(newBinding, currentHydrantForBinding.Position, (int)HydrantMap.Zoom);
-                    HydrantMap.Markers.Add(bindingMarker);
-                    bindingMarkers.Add(bindingMarker);
-                }
+                _ewsService.UpdateEwssBinding(ewss.EwsId, priviazka, geoX, geoY);
+                ewss.EwsPriviazka = priviazka;
+                ewss.EwsPriviazkaGeoX = geoX;
+                ewss.EwsPriviazkaGeoY = geoY;
+
+                var bindingMarker = BindingMarker.CreateMarkerFromEwss(ewss, currentHydrantForBinding.Position, (int)HydrantMap.Zoom);
+                HydrantMap.Markers.Add(bindingMarker);
+                bindingMarkers.Add(bindingMarker);
+
                 MessageBox.Show("Привязка установлена");
             }
             catch (Exception ex)
@@ -1179,16 +1193,16 @@ namespace ZoneHydrantEditor
                 MessageBox.Show("У маркера отсутствует ID.");
                 return;
             }
-            var bindingMarker = bindingMarkers.FirstOrDefault(b => b.Tag != null && b.Tag.ToString().StartsWith("binding_") && GetHydrantIdForBinding(b) == hydrantId);
+            var ewss = _ewsService.GetAllEwss().FirstOrDefault(e => e.MarkerId == hydrantId);
+            if (ewss == null || string.IsNullOrEmpty(ewss.EwsPriviazka)) return;
+            var bindingMarker = bindingMarkers.FirstOrDefault(b => b.Tag != null && b.Tag.ToString() == $"binding_{ewss.EwsId}");
             StartMovingBinding(bindingMarker);
         }
 
-        private int GetHydrantIdForBinding(GMapMarker bindingMarker)
+        private string GetEwssIdForBinding(GMapMarker bindingMarker)
         {
-            if (bindingMarker?.Tag == null || !bindingMarker.Tag.ToString().StartsWith("binding_")) return -1;
-            int bindingId = int.Parse(bindingMarker.Tag.ToString().Replace("binding_", ""));
-            var bindingInfo = _dbService.GetBindingInfo(bindingId);
-            return bindingInfo?.HydrantId ?? -1;
+            if (bindingMarker?.Tag == null || !bindingMarker.Tag.ToString().StartsWith("binding_")) return "";
+            return bindingMarker.Tag.ToString().Replace("binding_", "");
         }
 
         private void DeleteBindingForMarker(GMapMarker hydrantMarker)
@@ -1198,7 +1212,9 @@ namespace ZoneHydrantEditor
                 MessageBox.Show("У маркера отсутствует ID.");
                 return;
             }
-            var bindingMarker = bindingMarkers.FirstOrDefault(b => b.Tag != null && b.Tag.ToString().StartsWith("binding_") && GetHydrantIdForBinding(b) == hydrantId);
+            var ewss = _ewsService.GetAllEwss().FirstOrDefault(e => e.MarkerId == hydrantId);
+            if (ewss == null || string.IsNullOrEmpty(ewss.EwsPriviazka)) return;
+            var bindingMarker = bindingMarkers.FirstOrDefault(b => b.Tag != null && b.Tag.ToString() == $"binding_{ewss.EwsId}");
             DeleteBinding(bindingMarker);
         }
 
@@ -1218,33 +1234,35 @@ namespace ZoneHydrantEditor
             {
                 string tagStr = movingBindingMarker.Tag.ToString();
                 if (!tagStr.StartsWith("binding_")) return;
-                int bindingId = int.Parse(tagStr.Replace("binding_", ""));
-                var bindingInfo = _dbService.GetBindingInfo(bindingId);
-                if (bindingInfo == null)
+                string ewsId = tagStr.Replace("binding_", "");
+                var ewss = _ewsService.GetAllEwssWithDisplay().FirstOrDefault(e => e.EwsId == ewsId);
+                if (ewss == null)
                 {
                     MessageBox.Show("Привязка не найдена в базе данных.");
                     return;
                 }
-                var hydrant = _dbService.GetMarkerById(bindingInfo.HydrantId);
-                if (hydrant == null)
-                {
-                    MessageBox.Show("Гидрант не найден в базе данных.");
-                    return;
-                }
-                double newDistanceX = (newPosition.Lat - hydrant.Latitude) * 111320.0;
-                double newDistanceY = (newPosition.Lng - hydrant.Longitude) * (111320.0 * Math.Cos(hydrant.Latitude * Math.PI / 180.0));
-                _dbService.UpdateBinding(bindingId, newPosition.Lat, newPosition.Lng, newDistanceX, newDistanceY);
+
+                double newDistanceX = (newPosition.Lat - ewss.LatitudeD) * 111320.0;
+                double newDistanceY = (newPosition.Lng - ewss.LongitudeD) * (111320.0 * Math.Cos(ewss.LatitudeD * Math.PI / 180.0));
+
+                string priviazka = $"{newPosition.Lat.ToString(System.Globalization.CultureInfo.InvariantCulture)},{newPosition.Lng.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+                string geoX = newDistanceX.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                string geoY = newDistanceY.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+                _ewsService.UpdateEwssBinding(ewss.EwsId, priviazka, geoX, geoY);
+                ewss.EwsPriviazka = priviazka;
+                ewss.EwsPriviazkaGeoX = geoX;
+                ewss.EwsPriviazkaGeoY = geoY;
 
                 HydrantMap.Markers.Remove(movingBindingMarker);
                 bindingMarkers.Remove(movingBindingMarker);
 
-                var updatedBinding = _dbService.GetBindingInfo(bindingId);
-                if (updatedBinding != null)
-                {
-                    var bindingMarker = BindingMarker.CreateMarker(updatedBinding, new PointLatLng(hydrant.Latitude, hydrant.Longitude), (int)HydrantMap.Zoom);
-                    HydrantMap.Markers.Add(bindingMarker);
-                    bindingMarkers.Add(bindingMarker);
-                }
+                var bindingMarker = BindingMarker.CreateMarkerFromEwss(ewss,
+                    new PointLatLng(ewss.LatitudeD, ewss.LongitudeD),
+                    (int)HydrantMap.Zoom);
+                HydrantMap.Markers.Add(bindingMarker);
+                bindingMarkers.Add(bindingMarker);
+
                 MessageBox.Show("Привязка успешно перемещена!\n" + $"Новые координаты: {newPosition.Lat:F7}, {newPosition.Lng:F7}\n");
             }
             catch (Exception ex)
@@ -1262,13 +1280,13 @@ namespace ZoneHydrantEditor
         {
             if (bindingMarker?.Tag == null || !bindingMarker.Tag.ToString().StartsWith("binding_")) return;
             string tagStr = bindingMarker.Tag.ToString();
-            int bindingId = int.Parse(tagStr.Replace("binding_", ""));
+            string ewsId = tagStr.Replace("binding_", "");
             var result = MessageBox.Show("Вы уверены, что хотите удалить эту привязку?", "Подтверждение удаления", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (result != MessageBoxResult.Yes) return;
 
             try
             {
-                _dbService.DeleteBinding(bindingId);
+                _ewsService.ClearEwssBinding(ewsId);
                 HydrantMap.Markers.Remove(bindingMarker);
                 bindingMarkers.Remove(bindingMarker);
                 MessageBox.Show("Привязка успешно удалена.");
@@ -1303,14 +1321,13 @@ namespace ZoneHydrantEditor
                 Directory.CreateDirectory(exportFolder);
                 LoadZonesToSelector();
                 var zonesList = new List<ZoneInfo>();
-                var allHydrants = _dbService.GetAllMarkers();
                 foreach (var zone in zonesDictionary)
                 {
                     int zoneId = zone.Key;
                     var bounds = _dbService.GetZoneBounds(zoneId);
                     if (bounds != null && bounds.HasValidBounds)
                     {
-                        int hydrantCount = allHydrants.Count(h => h.ZoneId == zoneId);
+                        int hydrantCount = GetHydrantsInZone(zoneId).Count;
                         zonesList.Add(new ZoneInfo
                         {
                             ZoneId = zoneId,
@@ -1455,7 +1472,7 @@ namespace ZoneHydrantEditor
                         };
                         zoneMap.Markers.Add(zonePolygon);
                     }
-                    var freshHydrants = _dbService.GetMarkersInZone(zone.ZoneId);
+                    var freshHydrants = GetHydrantsInZone(zone.ZoneId);
                     foreach (var hydrant in freshHydrants)
                     {
                         var marker = HydrantMarker.CreateSimpleMarker(hydrant);
@@ -1505,80 +1522,73 @@ namespace ZoneHydrantEditor
         private async Task SaveZoneGridAsync(ZoneInfo zone, string baseFileName, Window progressWindow)
         {
             var tcs = new TaskCompletionSource<bool>();
-            await Application.Current.Dispatcher.InvokeAsync(async () =>
-            {
-                try
+                await Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
-                    var freshHydrants = _dbService.GetMarkersInZone(zone.ZoneId);
-                    if (freshHydrants.Count == 0)
+                    try
                     {
-                        tcs.SetResult(false);
-                        return;
-                    }
-
-                    const int columns = 4, rows = 3, cellsPerPage = columns * rows;
-                    int cellWidth = 280, cellHeight = 260, headerHeight = 60;
-                    int totalWidth = columns * cellWidth + 40;
-                    int totalHeight = headerHeight + rows * cellHeight + 30;
-
-                    var allPages = new List<List<GridCellData>>();
-                    var currentPage = new List<GridCellData>();
-
-                    // Группируем гидранты просто по порядку (первые 12, следующие 12 и т.д.)
-                    int cellIndex = 0;
-                    var orderedHydrants = freshHydrants.OrderBy(h => h.GidrantNumber).ToList();
-                    foreach (var hydrant in orderedHydrants)
-                    {
-                        currentPage.Add(new GridCellData
+                        var freshHydrants = GetHydrantsInZone(zone.ZoneId);
+                        if (freshHydrants.Count == 0)
                         {
-                            HydrantId = hydrant.Id,
-                            HydrantNumber = hydrant.GidrantNumber,
-                            HydrantTruba = hydrant.GidrantTruba,
-                            Latitude = hydrant.Latitude,
-                            Longitude = hydrant.Longitude,
-                            Status = hydrant.Status,
-                            BreakReason = hydrant.BreakReason
-                        });
-                        if (currentPage.Count >= cellsPerPage)
-                        {
-                            allPages.Add([.. currentPage]);
-                            currentPage.Clear();
+                            tcs.SetResult(false);
+                            return;
                         }
-                    }
-                    if (currentPage.Count != 0)
-                        allPages.Add(currentPage);
 
-                    int totalPages = allPages.Count;
-                    var allBindingsCache = new Dictionary<int, List<BindingInfo>>();
-                    foreach (var pageCells in allPages)
-                    {
-                        foreach (var cell in pageCells)
+                        const int columns = 4, rows = 3, cellsPerPage = columns * rows;
+                        int cellWidth = 280, cellHeight = 260, headerHeight = 60;
+                        int totalWidth = columns * cellWidth + 40;
+                        int totalHeight = headerHeight + rows * cellHeight + 30;
+
+                        var allPages = new List<List<GridCellData>>();
+                        var currentPage = new List<GridCellData>();
+
+                        int cellIndex = 0;
+                        var orderedHydrants = freshHydrants.OrderBy(h => h.DisplayNumber).ToList();
+                        foreach (var hydrant in orderedHydrants)
                         {
-                            if (!allBindingsCache.ContainsKey(cell.HydrantId))
-                                allBindingsCache[cell.HydrantId] = _dbService.GetBindingsForHydrant(cell.HydrantId);
+                            currentPage.Add(new GridCellData
+                            {
+                                HydrantId = hydrant.MarkerId,
+                                HydrantNumber = hydrant.DisplayNumber,
+                                HydrantTruba = hydrant.PipeInfo,
+                                Latitude = hydrant.LatitudeD,
+                                Longitude = hydrant.LongitudeD,
+                                Status = hydrant.StatusName,
+                                EwsId = hydrant.EwsId,
+                                EwsPriviazka = hydrant.EwsPriviazka ?? "",
+                                EwsPriviazkaGeoX = hydrant.EwsPriviazkaGeoX ?? "",
+                                EwsPriviazkaGeoY = hydrant.EwsPriviazkaGeoY ?? ""
+                            });
+                            if (currentPage.Count >= cellsPerPage)
+                            {
+                                allPages.Add([.. currentPage]);
+                                currentPage.Clear();
+                            }
                         }
-                    }
-                    for (int page = 0; page < totalPages; page++)
-                    {
-                        var pageCells = allPages[page];
-                        var captureWindow = new Window
+                        if (currentPage.Count != 0)
+                            allPages.Add(currentPage);
+
+                        int totalPages = allPages.Count;
+                        for (int page = 0; page < totalPages; page++)
                         {
-                            Title = $"Сетка зоны {zone.ZoneName} - Страница {page + 1} из {totalPages}",
-                            Width = totalWidth + 50,
-                            Height = totalHeight + 50,
-                            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                            WindowStyle = WindowStyle.SingleBorderWindow,
-                            ShowInTaskbar = false,
-                            Topmost = true,
-                            ResizeMode = ResizeMode.NoResize,
-                            Owner = progressWindow,
-                            Background = Brushes.White
-                        };
-                        if (!MBTilesProvider.Instance.IsLoaded)
-                            MBTilesProvider.Instance.LoadMBTilesFile("NewLoadMap.mbtiles");
-                        var gridPageControl = new GridPageControl(isExportMode: true);
-                        for (int i = 0; i < pageCells.Count; i++)
-                            gridPageControl.AddCell(pageCells[i], allBindingsCache, i);
+                            var pageCells = allPages[page];
+                            var captureWindow = new Window
+                            {
+                                Title = $"Сетка зоны {zone.ZoneName} - Страница {page + 1} из {totalPages}",
+                                Width = totalWidth + 50,
+                                Height = totalHeight + 50,
+                                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                                WindowStyle = WindowStyle.SingleBorderWindow,
+                                ShowInTaskbar = false,
+                                Topmost = true,
+                                ResizeMode = ResizeMode.NoResize,
+                                Owner = progressWindow,
+                                Background = Brushes.White
+                            };
+                            if (!MBTilesProvider.Instance.IsLoaded)
+                                MBTilesProvider.Instance.LoadMBTilesFile("NewLoadMap.mbtiles");
+                            var gridPageControl = new GridPageControl(isExportMode: true);
+                            for (int i = 0; i < pageCells.Count; i++)
+                                gridPageControl.AddCell(pageCells[i], i);
 
                         captureWindow.Content = gridPageControl;
                         var loadedTcs = new TaskCompletionSource<bool>();
@@ -1663,8 +1673,6 @@ namespace ZoneHydrantEditor
                 LoadZonesToSelector();
                 LoadAllZonesInEditor();
                 DrawAllZonesOnHydrantMap();
-                var ewsMarkers = _ewsService.GetAllHydrantsAsMarkers();
-                _dbService.SyncMarkers(ewsMarkers);
                 LoadHydrantsFromDatabase();
                 LoadBindingsFromDatabase();
                 UpdateMarkersZoneInfo();
@@ -1682,24 +1690,26 @@ namespace ZoneHydrantEditor
         #region СПИСОК ГИДРАНТОВ
         private void RefreshMarkers_Click(object sender, RoutedEventArgs e)
         {
-            _dbService.Cache.InvalidateMarkers();
-            _dbService.Cache.InvalidateBindings();
             LoadMarkersToDataGrid();
         }
 
-        private void LoadMarkersToDataGrid()
+        private void LoadMarkersToDataGrid(List<Ewss>? ewssList = null)
         {
-            var markers = _dbService.GetAllMarkers();
-            foreach (var marker in markers)
+            if (ewssList == null)
             {
-                if (marker.ZoneId.HasValue)
-                    marker.ZoneName = zonesDictionary.TryGetValue(marker.ZoneId.Value, out string? value) ? value : $"Зона {marker.ZoneId}";
+                ewssList = _ewsService.GetAllEwssWithDisplay();
+                AssignZoneIds(ewssList);
+            }
+            foreach (var ewss in ewssList)
+            {
+                if (ewss.ZoneId.HasValue)
+                    ewss.ZoneName = zonesDictionary.TryGetValue(ewss.ZoneId.Value, out string? value) ? value : $"Зона {ewss.ZoneId}";
                 else
-                    marker.ZoneName = "Не в зоне";
+                    ewss.ZoneName = "Не в зоне";
             }
             Application.Current.Dispatcher.Invoke(() =>
             {
-                MarkersDataGrid.ItemsSource = markers;
+                MarkersDataGrid.ItemsSource = ewssList;
                 UpdateRecordsCount();
             });
         }
@@ -1866,7 +1876,7 @@ namespace ZoneHydrantEditor
                 // 4. Подготовка списка зон
                 LoadZonesToSelector();
                 var zonesList = new List<ZoneInfo>();
-                var allHydrants = _dbService.GetAllMarkers();
+                var allHydrants = _ewsService.GetAllEwssWithDisplay();
 
                 foreach (var zone in zonesDictionary)
                 {
@@ -1881,7 +1891,7 @@ namespace ZoneHydrantEditor
                             MaxLat = bounds.MaxLat,
                             MinLng = bounds.MinLng,
                             MaxLng = bounds.MaxLng,
-                            HydrantCount = allHydrants.Count(h => h.ZoneId == zone.Key)
+                            HydrantCount = GetHydrantsInZone(zone.Key).Count
                         });
                     }
                 }
@@ -2196,7 +2206,7 @@ namespace ZoneHydrantEditor
                 body.AppendChild(CreateWordParagraph("", 12));
 
                 // === ТАБЛИЦА С ГИДРАНТАМИ ===
-                var hydrants = _dbService.GetMarkersInZone(zone.ZoneId);
+                var hydrants = GetHydrantsInZone(zone.ZoneId).OrderBy(h => h.DisplayNumber).ToList();
                 if (hydrants.Count > 0)
                 {
                     body.AppendChild(CreateWordParagraph("СПИСОК ГИДРАНТОВ", 18, true, JustificationValues.Center));
@@ -2231,16 +2241,16 @@ namespace ZoneHydrantEditor
                     for (int i = 0; i < hydrants.Count; i++)
                     {
                         var h = hydrants[i];
-                        string statusColor = h.Status == "Исправный" ? "D4EDDA" : (h.Status == "Неисправный" ? "F8D7DA" : "FFF3CD");
+                        string statusColor = h.StatusName == "Исправный" ? "D4EDDA" : (h.StatusName == "Неисправный" ? "F8D7DA" : "FFF3CD");
 
                         var row = new TableRow();
                         row.AppendChild(CreateWordTableCell((i + 1).ToString(), false, 10, null, JustificationValues.Center));
-                        row.AppendChild(CreateWordTableCell(h.GidrantNumber ?? "", false, 10, null, JustificationValues.Center));
-                        row.AppendChild(CreateWordTableCell(h.GidrantTruba ?? "", false, 10, null, JustificationValues.Center));
-                        row.AppendChild(CreateWordTableCell(h.GidrantAdres ?? "", false, 10));
-                        row.AppendChild(CreateWordTableCell(h.CompanyName ?? "", false, 10));
-                        row.AppendChild(CreateWordTableCell(h.Status ?? "", false, 10, statusColor, JustificationValues.Center));
-                        row.AppendChild(CreateWordTableCell(h.BreakReason ?? "", false, 10));
+                        row.AppendChild(CreateWordTableCell(h.DisplayNumber ?? "", false, 10, null, JustificationValues.Center));
+                        row.AppendChild(CreateWordTableCell(h.PipeInfo ?? "", false, 10, null, JustificationValues.Center));
+                        row.AppendChild(CreateWordTableCell(h.AddressText ?? "", false, 10));
+                        row.AppendChild(CreateWordTableCell(h.OrganizationName ?? "", false, 10));
+                        row.AppendChild(CreateWordTableCell(h.StatusName ?? "", false, 10, statusColor, JustificationValues.Center));
+                        row.AppendChild(CreateWordTableCell("", false, 10));
                         table.AppendChild(row);
                     }
                     body.AppendChild(table);
