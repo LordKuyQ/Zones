@@ -53,6 +53,15 @@ namespace ZoneHydrantEditor
         private bool _needsZoomUpdate = false;
         private CityDistrictsHelper _cityDistrictsHelper;
         private Fio _currentUser;
+        private const int SyncPageSize = 50;
+        private int _historyOffset;
+        private int _checkOffset;
+        private bool _isHistoryLoading;
+        private bool _isCheckLoading;
+        private bool _historyHasMore = true;
+        private bool _checkHasMore = true;
+        private readonly DispatcherTimer _historyDebounce;
+        private readonly DispatcherTimer _checkDebounce;
         #endregion
 
         #region КОНСТРУКТОР И ПОДГОТОВКА ПРИЛОЖЕНИЯ
@@ -76,8 +85,28 @@ namespace ZoneHydrantEditor
             _routingService.RouteRemoved += OnRouteRemoved;
             _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             _updateTimer.Tick += (s, e) => { if (_needsZoomUpdate) PerformZoomUpdate(); };
+
+            _historyDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _historyDebounce.Tick += (s, e) => { _historyDebounce.Stop(); LoadHistoryData(reset: true); };
+
+            _checkDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _checkDebounce.Tick += (s, e) => { _checkDebounce.Stop(); LoadCheckData(reset: true); };
             LoadMarkersToDataGrid();
             ApplicationPreparing();
+
+            HistorySearchTextBox.TextChanged += (s, e) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
+            HistoryDateFromPicker.SelectedDateChanged += (s, e) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
+            HistoryDateToPicker.SelectedDateChanged += (s, e) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
+
+            CheckSearchTextBox.TextChanged += (s, e) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
+            CheckDateFromPicker.SelectedDateChanged += (s, e) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
+            CheckDateToPicker.SelectedDateChanged += (s, e) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
+
+            Loaded += (s, e) =>
+            {
+                LoadHistoryData();
+                LoadCheckData();
+            };
         }
         private bool ShowUserSelectionDialog()
         {
@@ -953,6 +982,9 @@ namespace ZoneHydrantEditor
             var updated = editWindow.EditEwss;
             updated.EwsGeoCoordX = (decimal)marker.Position.Lat;
             updated.EwsGeoCoordY = (decimal)marker.Position.Lng;
+
+            _ewsService.InsertEwssHistory(existing, editWindow.ChangeReason);
+            _ewsService.InsertEwssCheck(updated);
             _ewsService.UpdateEwss(updated);
 
             // ПОЛНОСТЬЮ ПЕРЕЗАГРУЖАЕМ ГИДРАНТ ИЗ БД ЧЕРЕЗ GetAllEwssWithDisplay
@@ -1686,6 +1718,12 @@ namespace ZoneHydrantEditor
                         encoder.Save(fileStream);
                     }
                     captureWindow.Close();
+
+                    // Очистка памяти между зонами
+                    MBTilesProvider.Instance.ClearCache();
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    await Task.Delay(300);
                 }
                 catch (Exception ex)
                 {
@@ -1743,10 +1781,8 @@ namespace ZoneHydrantEditor
                     if (currentPage.Count != 0)
                         allPages.Add(currentPage);
 
-                    // === ПРОГРЕВ ТАЙЛОВ ПЕРЕД ЦИКЛОМ ===
-                    PrewarmTilesParallel(allPages.SelectMany(p => p).ToList());
-                    //PrewarmTilesDirect(allPages.SelectMany(p => p).ToList());
-
+                    //PrewarmTilesParallel(allPages.SelectMany(p => p).ToList());
+                    PrewarmTilesDirect(allPages.SelectMany(p => p).ToList());
 
                     int totalPages = allPages.Count;
                     int retryDelay = 500;
@@ -1828,6 +1864,11 @@ namespace ZoneHydrantEditor
                             encoder.Save(fileStream);
 
                         captureWindow.Close();
+
+                        // Очистка после каждой страницы
+                        MBTilesProvider.Instance.ClearCache();
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
                         await Task.Delay(200);
                     }
                     tcs.SetResult(true);
@@ -1841,42 +1882,42 @@ namespace ZoneHydrantEditor
             await tcs.Task;
         }
 
-        private void PrewarmTilesParallel(List<GridCellData> hydrants)
-        {
-            if (hydrants == null || hydrants.Count == 0) return;
+        //private void PrewarmTilesParallel(List<GridCellData> hydrants)
+        //{
+        //    if (hydrants == null || hydrants.Count == 0) return;
 
-            if (!MBTilesProvider.Instance.IsLoaded && File.Exists(_currentMBTilesPath))
-                MBTilesProvider.Instance.LoadMBTilesFile(_currentMBTilesPath);
+        //    if (!MBTilesProvider.Instance.IsLoaded && File.Exists(_currentMBTilesPath))
+        //        MBTilesProvider.Instance.LoadMBTilesFile(_currentMBTilesPath);
 
-            int zoom = 16;
-            var needed = new HashSet<(int x, int y)>();
+        //    int zoom = 16;
+        //    var needed = new HashSet<(int x, int y)>();
 
-            foreach (var hydrant in hydrants)
-            {
-                int tileX = (int)Math.Floor((hydrant.Longitude + 180.0) / 360.0 * (1 << zoom));
-                int tileY = (int)Math.Floor((1.0 - Math.Log(Math.Tan(hydrant.Latitude * Math.PI / 180.0)
-                    + 1.0 / Math.Cos(hydrant.Latitude * Math.PI / 180.0)) / Math.PI) / 2.0 * (1 << zoom));
+        //    foreach (var hydrant in hydrants)
+        //    {
+        //        int tileX = (int)Math.Floor((hydrant.Longitude + 180.0) / 360.0 * (1 << zoom));
+        //        int tileY = (int)Math.Floor((1.0 - Math.Log(Math.Tan(hydrant.Latitude * Math.PI / 180.0)
+        //            + 1.0 / Math.Cos(hydrant.Latitude * Math.PI / 180.0)) / Math.PI) / 2.0 * (1 << zoom));
 
-                int max = (1 << zoom) - 1;
-                tileX = Math.Clamp(tileX, 0, max);
-                tileY = Math.Clamp(tileY, 0, max);
+        //        int max = (1 << zoom) - 1;
+        //        tileX = Math.Clamp(tileX, 0, max);
+        //        tileY = Math.Clamp(tileY, 0, max);
 
-                for (int dx = -1; dx <= 1; dx++)
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        int tx = Math.Clamp(tileX + dx, 0, max);
-                        int ty = Math.Clamp(tileY + dy, 0, max);
-                        needed.Add((tx, ty));
-                    }
-            }
+        //        for (int dx = -1; dx <= 1; dx++)
+        //            for (int dy = -1; dy <= 1; dy++)
+        //            {
+        //                int tx = Math.Clamp(tileX + dx, 0, max);
+        //                int ty = Math.Clamp(tileY + dy, 0, max);
+        //                needed.Add((tx, ty));
+        //            }
+        //    }
 
-            var tileList = needed.ToList();
-            Parallel.For(0, tileList.Count, i =>
-            {
-                MBTilesProvider.Instance.GetTileImage(
-                    new GPoint(tileList[i].x, tileList[i].y), zoom);
-            });
-        }
+        //    var tileList = needed.ToList();
+        //    Parallel.For(0, tileList.Count, i =>
+        //    {
+        //        MBTilesProvider.Instance.GetTileImage(
+        //            new GPoint(tileList[i].x, tileList[i].y), zoom);
+        //    });
+        //} 
 
         private void PrewarmTilesDirect(List<GridCellData> hydrants)
         {
@@ -2157,11 +2198,117 @@ namespace ZoneHydrantEditor
             SearchTextBox.SelectAll();
         }
 
-        private void OpenSyncPageButton_Click(object sender, RoutedEventArgs e)
+        #region СИНХРОНИЗАЦИЯ (История изменений и проверок)
+        private void LoadHistoryData(bool reset = false)
         {
-            var window = new SyncPage.SyncPageWindow();
-            window.ShowDialog();
+            if (_isHistoryLoading) return;
+
+            try
+            {
+                _isHistoryLoading = true;
+
+                if (reset)
+                {
+                    _historyOffset = 0;
+                    _historyHasMore = true;
+                }
+
+                string search = HistorySearchTextBox.Text?.Trim();
+                string dateFrom = HistoryDateFromPicker.SelectedDate?.ToString("yyyy-MM-dd");
+                string dateTo = HistoryDateToPicker.SelectedDate?.ToString("yyyy-MM-dd");
+
+                var items = _ewsService.GetCopyEwssPaged(_historyOffset, SyncPageSize, search, dateFrom, dateTo);
+
+                if (items.Count < SyncPageSize)
+                    _historyHasMore = false;
+
+                if (reset)
+                    HistoryDataGrid.ItemsSource = items;
+                else
+                {
+                    var existing = HistoryDataGrid.ItemsSource as System.Collections.Generic.List<КопияEwss>;
+                    if (existing != null)
+                    {
+                        existing.AddRange(items);
+                        HistoryDataGrid.Items.Refresh();
+                    }
+                }
+
+                _historyOffset += items.Count;
+            }
+            finally
+            {
+                _isHistoryLoading = false;
+            }
         }
+
+        private void LoadCheckData(bool reset = false)
+        {
+            if (_isCheckLoading) return;
+
+            try
+            {
+                _isCheckLoading = true;
+
+                if (reset)
+                {
+                    _checkOffset = 0;
+                    _checkHasMore = true;
+                }
+
+                string search = CheckSearchTextBox.Text?.Trim();
+                string dateFrom = CheckDateFromPicker.SelectedDate?.ToString("yyyy-MM-dd");
+                string dateTo = CheckDateToPicker.SelectedDate?.ToString("yyyy-MM-dd");
+
+                var items = _ewsService.GetEwssChecksPaged(_checkOffset, SyncPageSize, search, dateFrom, dateTo);
+
+                if (items.Count < SyncPageSize)
+                    _checkHasMore = false;
+
+                if (reset)
+                    CheckDataGrid.ItemsSource = items;
+                else
+                {
+                    var existing = CheckDataGrid.ItemsSource as System.Collections.Generic.List<EwssCheck>;
+                    if (existing != null)
+                    {
+                        existing.AddRange(items);
+                        CheckDataGrid.Items.Refresh();
+                    }
+                }
+
+                _checkOffset += items.Count;
+            }
+            finally
+            {
+                _isCheckLoading = false;
+            }
+        }
+
+        private void HistoryScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (!_historyHasMore || _isHistoryLoading) return;
+            if (e.VerticalOffset + e.ViewportHeight >= e.ExtentHeight - 50)
+                LoadHistoryData();
+        }
+
+        private void CheckScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (!_checkHasMore || _isCheckLoading) return;
+            if (e.VerticalOffset + e.ViewportHeight >= e.ExtentHeight - 50)
+                LoadCheckData();
+        }
+
+        private async void SyncCreateBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            await _backupService.CreateFullBackupAsync(this);
+        }
+
+        private async void SyncRestoreBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            await _backupService.RestoreFromBackupAsync(this);
+        }
+        #endregion
 
         private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {

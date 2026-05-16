@@ -23,8 +23,8 @@ namespace ZoneHydrantEditor
             ZoneMap.MinZoom = 2;
             ZoneMap.MouseWheelZoomEnabled = false;
             ZoneMap.ShowTileGridLines = false;
-            ZoneMap.RetryLoadTile = 0;
-            ZoneMap.LevelsKeepInMemory = 5;
+            ZoneMap.RetryLoadTile = 2;           // <-- было 0, исправлено
+            ZoneMap.LevelsKeepInMemory = 20;      // <-- было 5, исправлено
             ZoneMap.MapProvider = MBTilesProvider.Instance;
 
             if (!MBTilesProvider.Instance.IsLoaded && System.IO.File.Exists("NewLoadMap.mbtiles"))

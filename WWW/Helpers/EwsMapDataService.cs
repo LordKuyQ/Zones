@@ -392,6 +392,246 @@ namespace ZoneHydrantEditor.Helpers
         }
         #endregion
 
+        #region CopyEwss (History) operations
+        public void EnsureCopyEwssSchema()
+        {
+            var columns = GetTableColumns("Копия EWSs");
+            var missing = new List<string>();
+
+            void AddIfMissing(string col, string type)
+            {
+                if (!columns.Any(c => string.Equals(c, col, StringComparison.OrdinalIgnoreCase)))
+                    missing.Add($"ALTER TABLE [Копия EWSs] ADD COLUMN [{col}] {type}");
+            }
+
+            AddIfMissing("EWS_FireUnit_COD", "TEXT");
+            AddIfMissing("EWS_Status_COD", "TEXT");
+            AddIfMissing("EWS_AdressObject_COD", "TEXT");
+            AddIfMissing("EWS_HouseNumber", "TEXT");
+            AddIfMissing("EWS_AdressNote", "TEXT");
+            AddIfMissing("EWS_PipeType_COD", "TEXT");
+            AddIfMissing("EWS_PKDiameter_COD", "TEXT");
+            AddIfMissing("EWS_Value_COD", "TEXT");
+            AddIfMissing("EWS_PrLeft", "TEXT");
+            AddIfMissing("EWS_PrRight", "TEXT");
+            AddIfMissing("EWS_PrStright", "TEXT");
+            AddIfMissing("EWS_Priviazka_GeoX", "TEXT");
+            AddIfMissing("EWS_Priviazka_GeoY", "TEXT");
+            AddIfMissing("Record_User_COD", "TEXT");
+            AddIfMissing("EWS_Type_COD", "TEXT");
+            AddIfMissing("ChangeDate", "TEXT");
+            AddIfMissing("ChangeDescription", "TEXT");
+
+            foreach (var sql in missing)
+            {
+                using var cmd = new SQLiteCommand(sql, _connection);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        public void InsertEwssHistory(Ewss oldEwss, string changeDescription)
+        {
+            EnsureCopyEwssSchema();
+
+            var dbColumns = GetTableColumns("Копия EWSs");
+            if (dbColumns.Count == 0) return;
+
+            var ewssProps = typeof(Ewss).GetProperties(BindingFlags.Public | BindingFlags.Instance).ToList();
+            var dbColSet = new HashSet<string>(dbColumns, StringComparer.OrdinalIgnoreCase);
+
+            var colNames = new List<string>();
+            var colValues = new List<object?>();
+
+            foreach (var dbCol in dbColumns)
+            {
+                object? value = null;
+                bool found = false;
+
+                if (string.Equals(dbCol, "ChangeDate", StringComparison.OrdinalIgnoreCase))
+                {
+                    value = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                    found = true;
+                }
+                else if (string.Equals(dbCol, "ChangeDescription", StringComparison.OrdinalIgnoreCase))
+                {
+                    value = changeDescription;
+                    found = true;
+                }
+                else
+                {
+                    var colNorm = NormalizeColumnName(dbCol);
+                    foreach (var prop in ewssProps)
+                    {
+                        var propNorm = NormalizePropertyName(prop.Name);
+                        if (string.Equals(propNorm, colNorm, StringComparison.OrdinalIgnoreCase))
+                        {
+                            value = prop.GetValue(oldEwss);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (found)
+                {
+                    colNames.Add(dbCol);
+                    colValues.Add(value);
+                }
+            }
+
+            if (colNames.Count == 0) return;
+
+            var colList = string.Join(", ", colNames.Select(EscapeName));
+            var paramList = string.Join(", ", colNames.Select((c, i) => $"@p{i}"));
+
+            using var cmd = new SQLiteCommand($"INSERT INTO [Копия EWSs] ({colList}) VALUES ({paramList})", _connection);
+            for (int i = 0; i < colValues.Count; i++)
+                cmd.Parameters.AddWithValue($"@p{i}", colValues[i] ?? DBNull.Value);
+
+            cmd.ExecuteNonQuery();
+        }
+
+        public void InsertEwssCheck(Ewss ewss)
+        {
+            var allChecks = GetAllEwssChecks();
+            int maxId = 0;
+            foreach (var c in allChecks)
+            {
+                if (int.TryParse(c.CheckId, out int id) && id > maxId)
+                    maxId = id;
+            }
+            string newId = (maxId + 1).ToString();
+
+            using var cmd = new SQLiteCommand(@"
+        INSERT INTO EWSs_Check
+            (Check_ID, Check_Date, Check_EWS_COD,
+             Check_CheckType_COD, Check_Staff_COD, Check_Status_COD,
+             Record_Created, Record_User_COD)
+        VALUES (@id, @date, @ewsId,
+            '1', @staff, @status,
+            @created, @user)",
+                _connection);
+
+            cmd.Parameters.AddWithValue("@id", newId);
+            cmd.Parameters.AddWithValue("@date", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            cmd.Parameters.AddWithValue("@ewsId", (object)ewss.EwsId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@staff", (object)ewss.RecordUserCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@status", (object)ewss.EwsStatusCod ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@created", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            cmd.Parameters.AddWithValue("@user", (object)ewss.RecordUserCod ?? DBNull.Value);
+
+            cmd.ExecuteNonQuery();
+        }
+
+        public List<КопияEwss> GetCopyEwssPaged(int offset, int limit, string? searchPg = null, string? dateFrom = null, string? dateTo = null)
+        {
+            var sql = new StringBuilder("SELECT * FROM [Копия EWSs] WHERE 1=1");
+            var args = new Dictionary<string, object>();
+
+            if (!string.IsNullOrWhiteSpace(searchPg))
+            {
+                sql.Append(" AND (EWS_ID LIKE @search OR EWS_Number LIKE @search)");
+                args["@search"] = $"%{searchPg}%";
+            }
+            if (!string.IsNullOrWhiteSpace(dateFrom))
+            {
+                sql.Append(" AND ChangeDate >= @dateFrom");
+                args["@dateFrom"] = dateFrom;
+            }
+            if (!string.IsNullOrWhiteSpace(dateTo))
+            {
+                sql.Append(" AND ChangeDate <= @dateTo");
+                args["@dateTo"] = dateTo;
+            }
+
+            sql.Append(" ORDER BY ChangeDate DESC LIMIT @limit OFFSET @offset");
+            args["@limit"] = limit;
+            args["@offset"] = offset;
+
+            var result = new List<КопияEwss>();
+            using var cmd = new SQLiteCommand(sql.ToString(), _connection);
+            foreach (var kvp in args)
+                cmd.Parameters.AddWithValue(kvp.Key, kvp.Value);
+
+            using var reader = cmd.ExecuteReader();
+            var type = typeof(КопияEwss);
+            var dbColumns = GetTableColumns("Копия EWSs");
+            var propertyMap = BuildPropertyMap(type, dbColumns);
+
+            while (reader.Read())
+            {
+                var item = new КопияEwss();
+                foreach (var kvp in propertyMap)
+                {
+                    try
+                    {
+                        var ordinal = reader.GetOrdinal(kvp.Key);
+                        if (!reader.IsDBNull(ordinal))
+                            SetPropertyValue(item, kvp.Value, reader.GetValue(ordinal));
+                    }
+                    catch { }
+                }
+                result.Add(item);
+            }
+
+            return result;
+        }
+
+        public List<EwssCheck> GetEwssChecksPaged(int offset, int limit, string? searchPg = null, string? dateFrom = null, string? dateTo = null)
+        {
+            var sql = new StringBuilder("SELECT * FROM EWSs_Check WHERE 1=1");
+            var args = new Dictionary<string, object>();
+
+            if (!string.IsNullOrWhiteSpace(searchPg))
+            {
+                sql.Append(" AND Check_EWS_COD LIKE @search");
+                args["@search"] = $"%{searchPg}%";
+            }
+            if (!string.IsNullOrWhiteSpace(dateFrom))
+            {
+                sql.Append(" AND Check_Date >= @dateFrom");
+                args["@dateFrom"] = dateFrom;
+            }
+            if (!string.IsNullOrWhiteSpace(dateTo))
+            {
+                sql.Append(" AND Check_Date <= @dateTo");
+                args["@dateTo"] = dateTo;
+            }
+
+            sql.Append(" ORDER BY Check_Date DESC LIMIT @limit OFFSET @offset");
+            args["@limit"] = limit;
+            args["@offset"] = offset;
+
+            var result = new List<EwssCheck>();
+            using var cmd = new SQLiteCommand(sql.ToString(), _connection);
+            foreach (var kvp in args)
+                cmd.Parameters.AddWithValue(kvp.Key, kvp.Value);
+
+            using var reader = cmd.ExecuteReader();
+            var type = typeof(EwssCheck);
+            var dbColumns = GetTableColumns("EWSs_Check");
+            var propertyMap = BuildPropertyMap(type, dbColumns);
+
+            while (reader.Read())
+            {
+                var item = new EwssCheck();
+                foreach (var kvp in propertyMap)
+                {
+                    try
+                    {
+                        var ordinal = reader.GetOrdinal(kvp.Key);
+                        if (!reader.IsDBNull(ordinal))
+                            SetPropertyValue(item, kvp.Value, reader.GetValue(ordinal));
+                    }
+                    catch { }
+                }
+                result.Add(item);
+            }
+
+            return result;
+        }
+        #endregion
+
         #region Binding operations
         public void UpdateEwssBinding(string ewsId, string? priviazka, string? geoX, string? geoY,
             string? prLeft = null, string? prRight = null, string? prStright = null)

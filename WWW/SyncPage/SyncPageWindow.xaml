@@ -1,12 +1,74 @@
 <Window x:Class="ZoneHydrantEditor.SyncPage.SyncPageWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Привязки гидрантов"
-        Height="700"
-        Width="1100"
+        Title="История изменений и проверок"
+        Height="750"
+        Width="1200"
         WindowStartupLocation="CenterScreen"
         Background="#F5F5F5">
     <Grid Margin="10">
-       
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TabControl Grid.Row="0">
+            <TabItem Header="История изменений">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="8" Margin="0,0,0,5">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="№ ПГ:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Name="HistorySearchTextBox" Width="120" Height="25" Margin="0,0,15,0"/>
+                            <TextBlock Text="Дата от:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <DatePicker Name="HistoryDateFromPicker" Width="130" Height="25" Margin="0,0,15,0"/>
+                            <TextBlock Text="Дата до:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <DatePicker Name="HistoryDateToPicker" Width="130" Height="25"/>
+                        </StackPanel>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" Name="HistoryDataGrid" AutoGenerateColumns="True"
+                              IsReadOnly="True" VirtualizingStackPanel.IsVirtualizing="True"
+                              ScrollViewer.ScrollChanged="HistoryScrollViewer_ScrollChanged"/>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="История проверок">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="8" Margin="0,0,0,5">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="№ ПГ:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBox Name="CheckSearchTextBox" Width="120" Height="25" Margin="0,0,15,0"/>
+                            <TextBlock Text="Дата от:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <DatePicker Name="CheckDateFromPicker" Width="130" Height="25" Margin="0,0,15,0"/>
+                            <TextBlock Text="Дата до:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <DatePicker Name="CheckDateToPicker" Width="130" Height="25"/>
+                        </StackPanel>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" Name="CheckDataGrid" AutoGenerateColumns="True"
+                              IsReadOnly="True" VirtualizingStackPanel.IsVirtualizing="True"
+                              ScrollViewer.ScrollChanged="CheckScrollViewer_ScrollChanged"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="1" Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="8" Margin="0,5,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Name="CreateBackupButton" Content="Создать резервную копию" Width="200" Height="35"
+                        Margin="5" Background="#4682B4" Foreground="White" Click="CreateBackupButton_Click"/>
+                <Button Name="RestoreBackupButton" Content="Восстановить из резервной копии" Width="220" Height="35"
+                        Margin="5" Background="#CD853F" Foreground="White" Click="RestoreBackupButton_Click"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

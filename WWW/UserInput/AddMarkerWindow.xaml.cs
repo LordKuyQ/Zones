@@ -10,6 +10,7 @@ namespace ZoneHydrantEditor
         public Ewss EditEwss { get; set; } = new Ewss();
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
+        public string ChangeReason => ChangeReasonTextBox.Text;
         private bool _isLoaded = false;
         private bool _isAddressResolving = false;
         private readonly GeocodingHelper _geocodingService;

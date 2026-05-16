@@ -14,7 +14,7 @@
         <TabControl Name="MainTabControl"
                     Background="White"
                     BorderThickness="0"
-                    TabStripPlacement="Top">
+                    TabStripPlacement="Top" >
             <TabItem Header="Редактор зон">
                 <DockPanel>
                     <Border DockPanel.Dock="Top" Height="Auto" Background="#1E1E1E" Padding="5">
@@ -39,8 +39,6 @@
                                 </Border>
 
                                 <Button Content="Сохранить все общие планы (PNG)"  Width="Auto" Height="30" Margin="5" ToolTip="Создание общего плана зон с гидрантами" Click="SaveAllZonesWithHydrants_Click"/>
-                                <Button Content="Резервное копирование" Width="Auto" Height="30" Margin="5" ToolTip="Сохранить полную копию всей информации (зоны, гидранты, привязки)" Click="FullBackup_Click"/>
-                                <Button Content="Восстановление резервной копии"  Width="Auto" Height="30" Margin="5" ToolTip="Загрузка резервной копии(удалит все несохраненные в резервную копию данные)" Click="FullRestore_Click"/>
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
@@ -88,14 +86,7 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Background="#FEF7E0" CornerRadius="6" Padding="5" Margin="5" BorderBrush="#1E1E1E" BorderThickness="2">
-                                        <StackPanel>
-                                            <TextBlock Text="Резервное копирование" FontSize="14" FontWeight="SemiBold" Foreground="#1E1E1E" Margin="5"/>
-                                            <TextBlock Text="• Кнопка 'Сохранить все' — сохранит PNG всех общих планов и карт гидрантов" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
-                                            <TextBlock Text="• Кнопка 'Резервное копирование' создаст резевную копию всех данных в программе(не забывайте регулярно делать резервное копирование для предотвращения потери данных)" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
-                                            <TextBlock Text="• Кнопка 'Восстановление резервной копии' восстановит резервную копию(все несохраненные в резервной копии данные удалятся)" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
-                                        </StackPanel>
-                                    </Border>
+
                                 </StackPanel>
                             </ScrollViewer>
                         </Expander>
@@ -228,13 +219,64 @@
                 </DockPanel>
             </TabItem>
             <TabItem Header="Синхронизация">
-                <DockPanel>
-                    <Border DockPanel.Dock="Top" Height="Auto" Background="#1E1E1E" Padding="5">
-                        <Grid HorizontalAlignment="Center">
-                            <Button Name="OpenSyncPageButton" Content="Открыть окно синхронизации" Width="200" Height="35" Margin="5" Background="#E8E8E8" Foreground="#1E1E1E" FontWeight="SemiBold" Cursor="Hand" Click="OpenSyncPageButton_Click"/>
-                        </Grid>
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TabControl Grid.Row="0">
+                        <TabItem Header="История изменений">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="8" Margin="0,0,0,5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="№ ПГ:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBox Name="HistorySearchTextBox" Width="120" Height="25" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Дата от:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <DatePicker Name="HistoryDateFromPicker" Width="130" Height="25" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Дата до:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <DatePicker Name="HistoryDateToPicker" Width="130" Height="25"/>
+                                    </StackPanel>
+                                </Border>
+                                <DataGrid Grid.Row="1" Name="HistoryDataGrid" AutoGenerateColumns="True"
+                                          IsReadOnly="True" VirtualizingStackPanel.IsVirtualizing="True"
+                                          ScrollViewer.ScrollChanged="HistoryScrollViewer_ScrollChanged"/>
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="История проверок">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="8" Margin="0,0,0,5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="№ ПГ:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBox Name="CheckSearchTextBox" Width="120" Height="25" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Дата от:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <DatePicker Name="CheckDateFromPicker" Width="130" Height="25" Margin="0,0,15,0"/>
+                                        <TextBlock Text="Дата до:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <DatePicker Name="CheckDateToPicker" Width="130" Height="25"/>
+                                    </StackPanel>
+                                </Border>
+                                <DataGrid Grid.Row="1" Name="CheckDataGrid" AutoGenerateColumns="True"
+                                          IsReadOnly="True" VirtualizingStackPanel.IsVirtualizing="True"
+                                          ScrollViewer.ScrollChanged="CheckScrollViewer_ScrollChanged"/>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                    <Border Grid.Row="1" Background="White" BorderBrush="#DDD" BorderThickness="1" Padding="8" Margin="0,5,0,0">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Name="SyncCreateBackupButton" Content="Создать резервную копию" Width="200" Height="35"
+                                    Margin="5" Background="#4682B4" Foreground="White" Click="SyncCreateBackupButton_Click"/>
+                            <Button Name="SyncRestoreBackupButton" Content="Восстановить из резервной копии" Width="220" Height="35"
+                                    Margin="5" Background="#CD853F" Foreground="White" Click="SyncRestoreBackupButton_Click"/>
+                        </StackPanel>
                     </Border>
-                </DockPanel>
+                </Grid>
             </TabItem>
         </TabControl>
     </Grid>

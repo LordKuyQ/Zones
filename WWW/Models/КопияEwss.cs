@@ -66,4 +66,38 @@ public partial class КопияEwss
     public string? RecordStatus { get; set; }
 
     public string? RecordNote { get; set; }
+
+    public string? EwsFireUnitCod { get; set; }
+
+    public string? EwsStatusCod { get; set; }
+
+    public string? EwsAdressObjectCod { get; set; }
+
+    public string? EwsHouseNumber { get; set; }
+
+    public string? EwsAdressNote { get; set; }
+
+    public string? EwsPipeTypeCod { get; set; }
+
+    public string? EwsPkdiameterCod { get; set; }
+
+    public string? EwsValueCod { get; set; }
+
+    public string? EwsPrLeft { get; set; }
+
+    public string? EwsPrRight { get; set; }
+
+    public string? EwsPrStright { get; set; }
+
+    public string? EwsPriviazkaGeoX { get; set; }
+
+    public string? EwsPriviazkaGeoY { get; set; }
+
+    public string? RecordUserCod { get; set; }
+
+    public string? EwsTypeCod { get; set; }
+
+    public string? ChangeDate { get; set; }
+
+    public string? ChangeDescription { get; set; }
 }

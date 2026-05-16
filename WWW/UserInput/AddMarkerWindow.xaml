@@ -50,6 +50,9 @@
         
         <TextBlock Text="Примечание:"/>
         <TextBox Name="NotesTextBox" Height="50" TextWrapping="Wrap" AcceptsReturn="True"/>
+
+        <TextBlock Text="Причина изменения:"/>
+        <TextBox Name="ChangeReasonTextBox" Height="50" TextWrapping="Wrap" AcceptsReturn="True"/>
         
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="5">
             <Button Content="Отмена" Width="80" Height="30" Click="CancelButton_Click"/>
