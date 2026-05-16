@@ -815,9 +815,14 @@ namespace ZoneHydrantEditor
                     ewss.EwsPacount = "1";
                     _ewsService.InsertEwss(ewss);
 
+                    // Перезагружаем гидрант из БД чтобы получить DisplayNumber, StatusName, PipeInfo
+                    var reloaded = _ewsService.GetAllEwssWithDisplay().FirstOrDefault(e => e.EwsId == ewss.EwsId);
+                    if (reloaded == null) reloaded = ewss;
+
                     var (zoneId, zoneName) = GetZoneInfoForPoint(point.Lat, point.Lng);
-                    ewss.ZoneId = zoneId;
-                    AddOrUpdateHydrantMarker(ewss);
+                    reloaded.ZoneId = zoneId;
+                    AddOrUpdateHydrantMarker(reloaded);
+                    LoadMarkersToDataGrid();
                     MessageBox.Show($"Маркер гидранта добавлен\n{(zoneId.HasValue ? $"Общий план: {zoneName}" : "Находится вне общего плана")}");
                 }
             }
@@ -827,7 +832,6 @@ namespace ZoneHydrantEditor
             }
             e.Handled = true;
         }
-
         private void AddOrUpdateHydrantMarker(Ewss ewss)
         {
             var id = ewss.MarkerId;
@@ -840,6 +844,7 @@ namespace ZoneHydrantEditor
                 canvas.MouseRightButtonDown += (s, e) => { e.Handled = true; ShowMarkerContextMenu(marker); };
             }
             HydrantMap.Markers.Add(marker);
+            HydrantMap.InvalidateVisual();
         }
 
         private void ShowMarkerContextMenu(GMapMarker marker)
@@ -1269,22 +1274,19 @@ namespace ZoneHydrantEditor
                 dialog.BindingRight,
                 dialog.BindingStraight);
 
-            ewss.EwsPriviazka = dialog.BindingComment;
-            ewss.EwsPriviazkaGeoX = dialog.BindingLat;
-            ewss.EwsPriviazkaGeoY = dialog.BindingLng;
-            ewss.EwsPrLeft = dialog.BindingLeft;
-            ewss.EwsPrRight = dialog.BindingRight;
-            ewss.EwsPrStright = dialog.BindingStraight;
+            // Перезагружаем гидрант из БД
+            var reloaded = _ewsService.GetAllEwssWithDisplay().FirstOrDefault(e => e.EwsId == ewss.EwsId);
+            if (reloaded == null) reloaded = ewss;
 
-            var existingMarker = bindingMarkers.FirstOrDefault(b => GetEwssIdForBinding(b) == ewss.EwsId);
+            var existingMarker = bindingMarkers.FirstOrDefault(b => GetEwssIdForBinding(b) == reloaded.EwsId);
             if (existingMarker != null)
             {
                 HydrantMap.Markers.Remove(existingMarker);
                 bindingMarkers.Remove(existingMarker);
             }
 
-            var hydrantPos = new PointLatLng(ewss.LatitudeD, ewss.LongitudeD);
-            var newMarker = BindingMarker.CreateMarkerFromEwss(ewss, hydrantPos, (int)HydrantMap.Zoom);
+            var hydrantPos = new PointLatLng(reloaded.LatitudeD, reloaded.LongitudeD);
+            var newMarker = BindingMarker.CreateMarkerFromEwss(reloaded, hydrantPos, (int)HydrantMap.Zoom);
             HydrantMap.Markers.Add(newMarker);
             bindingMarkers.Add(newMarker);
 
@@ -1315,14 +1317,11 @@ namespace ZoneHydrantEditor
                     dialog.BindingRight,
                     dialog.BindingStraight);
 
-                ewss.EwsPriviazka = dialog.BindingComment;
-                ewss.EwsPriviazkaGeoX = dialog.BindingLat;
-                ewss.EwsPriviazkaGeoY = dialog.BindingLng;
-                ewss.EwsPrLeft = dialog.BindingLeft;
-                ewss.EwsPrRight = dialog.BindingRight;
-                ewss.EwsPrStright = dialog.BindingStraight;
+                // Перезагружаем гидрант из БД чтобы получить DisplayNumber, StatusName, PipeInfo
+                var reloaded = _ewsService.GetAllEwssWithDisplay().FirstOrDefault(e => e.EwsId == ewss.EwsId);
+                if (reloaded == null) reloaded = ewss;
 
-                var bindingMarker = BindingMarker.CreateMarkerFromEwss(ewss, currentHydrantForBinding.Position, (int)HydrantMap.Zoom);
+                var bindingMarker = BindingMarker.CreateMarkerFromEwss(reloaded, currentHydrantForBinding.Position, (int)HydrantMap.Zoom);
                 HydrantMap.Markers.Add(bindingMarker);
                 bindingMarkers.Add(bindingMarker);
 
@@ -1700,106 +1699,132 @@ namespace ZoneHydrantEditor
         private async Task SaveZoneGridAsync(ZoneInfo zone, string baseFileName, Window progressWindow)
         {
             var tcs = new TaskCompletionSource<bool>();
-                await Application.Current.Dispatcher.InvokeAsync(async () =>
+            await Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                try
                 {
-                    try
+                    var freshHydrants = GetHydrantsInZone(zone.ZoneId);
+                    if (freshHydrants.Count == 0)
                     {
-                        var freshHydrants = GetHydrantsInZone(zone.ZoneId);
-                        if (freshHydrants.Count == 0)
+                        tcs.SetResult(false);
+                        return;
+                    }
+
+                    const int columns = 4, rows = 3, cellsPerPage = columns * rows;
+                    int cellWidth = 280, cellHeight = 260, headerHeight = 60;
+                    int totalWidth = columns * cellWidth + 40;
+                    int totalHeight = headerHeight + rows * cellHeight + 30;
+
+                    var allPages = new List<List<GridCellData>>();
+                    var currentPage = new List<GridCellData>();
+
+                    var orderedHydrants = freshHydrants.OrderBy(h => h.DisplayNumber).ToList();
+                    foreach (var hydrant in orderedHydrants)
+                    {
+                        currentPage.Add(new GridCellData
                         {
-                            tcs.SetResult(false);
-                            return;
+                            HydrantId = hydrant.MarkerId,
+                            HydrantNumber = hydrant.DisplayNumber,
+                            HydrantTruba = hydrant.PipeInfo,
+                            Latitude = hydrant.LatitudeD,
+                            Longitude = hydrant.LongitudeD,
+                            Status = hydrant.StatusName,
+                            EwsId = hydrant.EwsId,
+                            EwsPriviazka = hydrant.EwsPriviazka ?? "",
+                            EwsPriviazkaGeoX = hydrant.EwsPriviazkaGeoX ?? "",
+                            EwsPriviazkaGeoY = hydrant.EwsPriviazkaGeoY ?? ""
+                        });
+                        if (currentPage.Count >= cellsPerPage)
+                        {
+                            allPages.Add([.. currentPage]);
+                            currentPage.Clear();
                         }
+                    }
+                    if (currentPage.Count != 0)
+                        allPages.Add(currentPage);
 
-                        const int columns = 4, rows = 3, cellsPerPage = columns * rows;
-                        int cellWidth = 280, cellHeight = 260, headerHeight = 60;
-                        int totalWidth = columns * cellWidth + 40;
-                        int totalHeight = headerHeight + rows * cellHeight + 30;
+                    // === ПРОГРЕВ ТАЙЛОВ ПЕРЕД ЦИКЛОМ ===
+                    PrewarmTilesDirect(allPages.SelectMany(p => p).ToList());
 
-                        var allPages = new List<List<GridCellData>>();
-                        var currentPage = new List<GridCellData>();
+                    int totalPages = allPages.Count;
+                    int retryDelay = 500;
 
-                        int cellIndex = 0;
-                        var orderedHydrants = freshHydrants.OrderBy(h => h.DisplayNumber).ToList();
-                        foreach (var hydrant in orderedHydrants)
+                    for (int page = 0; page < totalPages; page++)
+                    {
+                        var pageCells = allPages[page];
+                        var captureWindow = new Window
                         {
-                            currentPage.Add(new GridCellData
-                            {
-                                HydrantId = hydrant.MarkerId,
-                                HydrantNumber = hydrant.DisplayNumber,
-                                HydrantTruba = hydrant.PipeInfo,
-                                Latitude = hydrant.LatitudeD,
-                                Longitude = hydrant.LongitudeD,
-                                Status = hydrant.StatusName,
-                                EwsId = hydrant.EwsId,
-                                EwsPriviazka = hydrant.EwsPriviazka ?? "",
-                                EwsPriviazkaGeoX = hydrant.EwsPriviazkaGeoX ?? "",
-                                EwsPriviazkaGeoY = hydrant.EwsPriviazkaGeoY ?? ""
-                            });
-                            if (currentPage.Count >= cellsPerPage)
-                            {
-                                allPages.Add([.. currentPage]);
-                                currentPage.Clear();
-                            }
-                        }
-                        if (currentPage.Count != 0)
-                            allPages.Add(currentPage);
+                            Title = $"Сетка зоны {zone.ZoneName} - Страница {page + 1} из {totalPages}",
+                            Width = totalWidth + 50,
+                            Height = totalHeight + 50,
+                            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                            WindowStyle = WindowStyle.SingleBorderWindow,
+                            ShowInTaskbar = false,
+                            Topmost = true,
+                            ResizeMode = ResizeMode.NoResize,
+                            Owner = progressWindow,
+                            Background = Brushes.White
+                        };
+                        if (!MBTilesProvider.Instance.IsLoaded)
+                            MBTilesProvider.Instance.LoadMBTilesFile("NewLoadMap.mbtiles");
 
-                        int totalPages = allPages.Count;
-                        for (int page = 0; page < totalPages; page++)
-                        {
-                            var pageCells = allPages[page];
-                            var captureWindow = new Window
-                            {
-                                Title = $"Сетка зоны {zone.ZoneName} - Страница {page + 1} из {totalPages}",
-                                Width = totalWidth + 50,
-                                Height = totalHeight + 50,
-                                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                                WindowStyle = WindowStyle.SingleBorderWindow,
-                                ShowInTaskbar = false,
-                                Topmost = true,
-                                ResizeMode = ResizeMode.NoResize,
-                                Owner = progressWindow,
-                                Background = Brushes.White
-                            };
-                            if (!MBTilesProvider.Instance.IsLoaded)
-                                MBTilesProvider.Instance.LoadMBTilesFile("NewLoadMap.mbtiles");
-                            var gridPageControl = new GridPageControl(isExportMode: true);
-                            for (int i = 0; i < pageCells.Count; i++)
-                                gridPageControl.AddCell(pageCells[i], i);
+                        var gridPageControl = new GridPageControl(isExportMode: true);
+                        for (int i = 0; i < pageCells.Count; i++)
+                            gridPageControl.AddCell(pageCells[i], i);
 
                         captureWindow.Content = gridPageControl;
                         var loadedTcs = new TaskCompletionSource<bool>();
                         captureWindow.Loaded += (s, e) => loadedTcs.TrySetResult(true);
                         captureWindow.Show();
                         await loadedTcs.Task;
-                        await Task.Delay(500);
+                        await Task.Delay(retryDelay);
+
                         var dialog = new GridSaveDialog(zone.ZoneName, page + 1, totalPages, pageCells, baseFileName)
                         {
                             Owner = captureWindow
                         };
                         var dialogResult = dialog.ShowDialog();
+
                         if (dialogResult == false || dialog.IsCancelled)
                         {
                             captureWindow.Close();
                             tcs.SetResult(false);
                             return;
                         }
+
                         if (dialog.NeedsRetry)
                         {
+                            retryDelay = Math.Min(retryDelay + 500, 3000);
+                            MBTilesProvider.Instance.ClearCache();
                             page--;
                             captureWindow.Close();
                             continue;
                         }
+
+                        retryDelay = 500;
+
+                        InvalidateAllMiniMaps(gridPageControl);
+
                         string fileName = dialog.FileName;
+
                         captureWindow.UpdateLayout();
                         await Task.Delay(300);
-                        RenderTargetBitmap renderBitmap = new((int)captureWindow.ActualWidth, (int)captureWindow.ActualHeight, 96d, 96d, PixelFormats.Pbgra32);
+                        await Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+                        await Task.Delay(200);
+
+                        captureWindow.UpdateLayout();
+
+                        RenderTargetBitmap renderBitmap = new(
+                            (int)captureWindow.ActualWidth,
+                            (int)captureWindow.ActualHeight,
+                            96d, 96d, PixelFormats.Pbgra32);
                         renderBitmap.Render(captureWindow);
+
                         var encoder = new PngBitmapEncoder();
                         encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
                         using (FileStream fileStream = new(fileName, FileMode.Create))
                             encoder.Save(fileStream);
+
                         captureWindow.Close();
                         await Task.Delay(200);
                     }
@@ -1812,6 +1837,124 @@ namespace ZoneHydrantEditor
                 }
             });
             await tcs.Task;
+        }
+
+        private void PrewarmTilesDirect(List<GridCellData> hydrants)
+        {
+            if (hydrants == null || hydrants.Count == 0) return;
+
+            if (!MBTilesProvider.Instance.IsLoaded && File.Exists(_currentMBTilesPath))
+                MBTilesProvider.Instance.LoadMBTilesFile(_currentMBTilesPath);
+
+            int[] zooms = { 15, 16, 17 };
+            var processed = new HashSet<string>();
+
+            foreach (var hydrant in hydrants)
+            {
+                foreach (int zoom in zooms)
+                {
+                    long tileX = (long)Math.Floor((hydrant.Longitude + 180.0) / 360.0 * (1 << zoom));
+                    long tileY = (long)Math.Floor((1.0 - Math.Log(Math.Tan(hydrant.Latitude * Math.PI / 180.0) + 1.0 / Math.Cos(hydrant.Latitude * Math.PI / 180.0)) / Math.PI) / 2.0 * (1 << zoom));
+
+                    long maxTile = (1L << zoom) - 1;
+                    tileX = Math.Clamp(tileX, 0, maxTile);
+                    tileY = Math.Clamp(tileY, 0, maxTile);
+
+                    for (int dx = -1; dx <= 1; dx++)
+                    {
+                        for (int dy = -1; dy <= 1; dy++)
+                        {
+                            long tx = Math.Clamp(tileX + dx, 0, maxTile);
+                            long ty = Math.Clamp(tileY + dy, 0, maxTile);
+
+                            var tile = new GPoint(tx, ty);
+                            string key = $"{zoom}_{tile.X}_{tile.Y}";
+                            if (processed.Add(key))
+                                MBTilesProvider.Instance.GetTileImage(tile, zoom);
+                        }
+                    }
+                }
+            }
+        }
+        private async Task PrewarmTileCacheAsync(List<GridCellData> hydrants)
+        {
+            if (hydrants == null || hydrants.Count == 0) return;
+
+            if (!MBTilesProvider.Instance.IsLoaded && File.Exists(_currentMBTilesPath))
+                MBTilesProvider.Instance.LoadMBTilesFile(_currentMBTilesPath);
+
+            var warmWindow = new Window
+            {
+                Width = 1,
+                Height = 1,
+                WindowStyle = WindowStyle.None,
+                ShowInTaskbar = false,
+                AllowsTransparency = true,
+                Background = Brushes.Transparent,
+                Visibility = Visibility.Hidden
+            };
+
+            var warmMap = new GMapControl
+            {
+                Width = 280,
+                Height = 260,
+                MapProvider = MBTilesProvider.Instance,
+                MinZoom = 16,
+                MaxZoom = 16,
+                Zoom = 16,
+                Bearing = 0,
+                CanDragMap = false,
+                MouseWheelZoomEnabled = false,
+                ShowTileGridLines = false,
+                LevelsKeepInMemory = 10,
+                Manager = { Mode = AccessMode.ServerAndCache }
+            };
+
+            warmWindow.Content = warmMap;
+            warmWindow.Show();
+
+            // Ждём инициализации
+            await Task.Delay(200);
+            await Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+
+            // Перебираем все гидранты и переключаем позицию — GMap сам подгрузит тайлы
+            var uniquePositions = hydrants
+                .Select(h => new PointLatLng(h.Latitude, h.Longitude))
+                .Distinct()
+                .ToList();
+
+            for (int i = 0; i < uniquePositions.Count; i++)
+            {
+                warmMap.Position = uniquePositions[i];
+                warmMap.InvalidateVisual();
+
+                // Каждые 4 позиции даём время на загрузку
+                if (i % 4 == 0 || i == uniquePositions.Count - 1)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+                    await Task.Delay(300);
+                }
+            }
+
+            warmMap.InvalidateVisual();
+            await Task.Delay(500);
+            await Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
+
+            warmWindow.Close();
+        }
+
+        private static void InvalidateAllMiniMaps(DependencyObject parent)
+        {
+            if (parent == null) return;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is GMapControl map)
+                {
+                    map.InvalidateVisual();
+                }
+                InvalidateAllMiniMaps(child);
+            }
         }
 
         private static double CalculateOptimalZoom(double minLat, double maxLat, double minLng, double maxLng)
