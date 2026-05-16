@@ -1744,7 +1744,9 @@ namespace ZoneHydrantEditor
                         allPages.Add(currentPage);
 
                     // === ПРОГРЕВ ТАЙЛОВ ПЕРЕД ЦИКЛОМ ===
-                    PrewarmTilesDirect(allPages.SelectMany(p => p).ToList());
+                    PrewarmTilesParallel(allPages.SelectMany(p => p).ToList());
+                    //PrewarmTilesDirect(allPages.SelectMany(p => p).ToList());
+
 
                     int totalPages = allPages.Count;
                     int retryDelay = 500;
@@ -1837,6 +1839,43 @@ namespace ZoneHydrantEditor
                 }
             });
             await tcs.Task;
+        }
+
+        private void PrewarmTilesParallel(List<GridCellData> hydrants)
+        {
+            if (hydrants == null || hydrants.Count == 0) return;
+
+            if (!MBTilesProvider.Instance.IsLoaded && File.Exists(_currentMBTilesPath))
+                MBTilesProvider.Instance.LoadMBTilesFile(_currentMBTilesPath);
+
+            int zoom = 16;
+            var needed = new HashSet<(int x, int y)>();
+
+            foreach (var hydrant in hydrants)
+            {
+                int tileX = (int)Math.Floor((hydrant.Longitude + 180.0) / 360.0 * (1 << zoom));
+                int tileY = (int)Math.Floor((1.0 - Math.Log(Math.Tan(hydrant.Latitude * Math.PI / 180.0)
+                    + 1.0 / Math.Cos(hydrant.Latitude * Math.PI / 180.0)) / Math.PI) / 2.0 * (1 << zoom));
+
+                int max = (1 << zoom) - 1;
+                tileX = Math.Clamp(tileX, 0, max);
+                tileY = Math.Clamp(tileY, 0, max);
+
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        int tx = Math.Clamp(tileX + dx, 0, max);
+                        int ty = Math.Clamp(tileY + dy, 0, max);
+                        needed.Add((tx, ty));
+                    }
+            }
+
+            var tileList = needed.ToList();
+            Parallel.For(0, tileList.Count, i =>
+            {
+                MBTilesProvider.Instance.GetTileImage(
+                    new GPoint(tileList[i].x, tileList[i].y), zoom);
+            });
         }
 
         private void PrewarmTilesDirect(List<GridCellData> hydrants)
