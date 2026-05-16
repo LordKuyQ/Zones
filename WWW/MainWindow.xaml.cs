@@ -53,6 +53,7 @@ namespace ZoneHydrantEditor
         private bool _needsZoomUpdate = false;
         private CityDistrictsHelper _cityDistrictsHelper;
         private Fio _currentUser;
+        private bool _syncTabInitialized;
         private const int SyncPageSize = 50;
         private int _historyOffset;
         private int _checkOffset;
@@ -93,20 +94,7 @@ namespace ZoneHydrantEditor
             _checkDebounce.Tick += (s, e) => { _checkDebounce.Stop(); LoadCheckData(reset: true); };
             LoadMarkersToDataGrid();
             ApplicationPreparing();
-
-            HistorySearchTextBox.TextChanged += (s, e) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
-            HistoryDateFromPicker.SelectedDateChanged += (s, e) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
-            HistoryDateToPicker.SelectedDateChanged += (s, e) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
-
-            CheckSearchTextBox.TextChanged += (s, e) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
-            CheckDateFromPicker.SelectedDateChanged += (s, e) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
-            CheckDateToPicker.SelectedDateChanged += (s, e) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
-
-            Loaded += (s, e) =>
-            {
-                LoadHistoryData();
-                LoadCheckData();
-            };
+            MainTabControl.SelectionChanged += MainTabControl_SelectionChanged;
         }
         private bool ShowUserSelectionDialog()
         {
@@ -2196,6 +2184,30 @@ namespace ZoneHydrantEditor
         {
             SearchTextBox.Focus();
             SearchTextBox.SelectAll();
+        }
+
+        private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncTabInitialized) return;
+            if (MainTabControl.SelectedIndex != 3) return;
+
+            _syncTabInitialized = true;
+
+            HistoryDateFromPicker.SelectedDate = DateTime.Today.AddYears(-5);
+            HistoryDateToPicker.SelectedDate = DateTime.Today;
+            CheckDateFromPicker.SelectedDate = DateTime.Today.AddYears(-5);
+            CheckDateToPicker.SelectedDate = DateTime.Today;
+
+            HistorySearchTextBox.TextChanged += (s, args) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
+            HistoryDateFromPicker.SelectedDateChanged += (s, args) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
+            HistoryDateToPicker.SelectedDateChanged += (s, args) => { _historyDebounce.Stop(); _historyDebounce.Start(); };
+
+            CheckSearchTextBox.TextChanged += (s, args) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
+            CheckDateFromPicker.SelectedDateChanged += (s, args) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
+            CheckDateToPicker.SelectedDateChanged += (s, args) => { _checkDebounce.Stop(); _checkDebounce.Start(); };
+
+            LoadHistoryData();
+            LoadCheckData();
         }
 
         #region СИНХРОНИЗАЦИЯ (История изменений и проверок)
