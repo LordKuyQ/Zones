@@ -1,4 +1,4 @@
-﻿using System.Windows.Controls;
+using System.Windows.Controls;
 using System.Windows.Media;
 
 namespace ZoneHydrantEditor.GraphicElements
@@ -6,7 +6,7 @@ namespace ZoneHydrantEditor.GraphicElements
     public static class HydrantContextMenu
     {
         public static ContextMenu Create(Action onShowInfo,Action onEdit,Action onMove,Action onDelete,
-        Action onAddBinding,Action onMoveBinding,Action onDeleteBinding,Action onStartRoute,bool hasBinding)
+        Action onAddBinding,Action onEditBinding,Action onMoveBinding,Action onDeleteBinding,Action onStartRoute,bool hasBinding)
         {
             var menu = new ContextMenu();
             AddItem(menu, "Показать информацию", onShowInfo);
@@ -16,6 +16,7 @@ namespace ZoneHydrantEditor.GraphicElements
             AddItem(menu, "Добавить привязку", onAddBinding);
             if (hasBinding)
             {
+                AddItem(menu, "Редактировать привязку", onEditBinding);
                 AddItem(menu, "Переместить привязку", onMoveBinding);
                 AddItem(menu, "Удалить привязку", onDeleteBinding, Brushes.Red);
             }

@@ -1,11 +1,9 @@
-﻿using GMap.NET;
+using GMap.NET;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
 using System.IO;
-using System.Linq;
-using TestDbApp.Models;
 using ZoneHydrantEditor.Models;
 
 namespace ZoneHydrantEditor.Helpers
@@ -13,10 +11,8 @@ namespace ZoneHydrantEditor.Helpers
     public class DatabaseService
     {
         private const string ZonesDbFile = "zones0815.db";
-        private const string HydrantsDbFile = "hydrants0815.db";
 
         private SQLiteConnection _zonesConnection;
-        private SQLiteConnection _hydrantsConnection;
 
         // Менеджер кэширования
         private readonly CacheManager _cacheManager;
@@ -33,7 +29,6 @@ namespace ZoneHydrantEditor.Helpers
         private void InitializeDatabases()
         {
             InitializeZonesDatabase();
-            InitializeHydrantsDatabase();
         }
 
         private void InitializeZonesDatabase()
@@ -83,34 +78,6 @@ namespace ZoneHydrantEditor.Helpers
             _zonesConnection.Close();
         }
 
-        private void InitializeHydrantsDatabase()
-        {
-            bool newDb = !File.Exists(HydrantsDbFile);
-            if (newDb)
-                SQLiteConnection.CreateFile(HydrantsDbFile);
-
-            _hydrantsConnection = new SQLiteConnection($"Data Source={HydrantsDbFile};Version=3;");
-            _hydrantsConnection.Open();
-
-            string createCompanies = @"
-                CREATE TABLE IF NOT EXISTS Companies (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Name TEXT NOT NULL UNIQUE
-                );";
-            new SQLiteCommand(createCompanies, _hydrantsConnection).ExecuteNonQuery();
-
-            // Добавляем значения по умолчанию, если таблица пустая
-            var checkCmd = new SQLiteCommand("SELECT COUNT(*) FROM Companies", _hydrantsConnection);
-            int count = Convert.ToInt32(checkCmd.ExecuteScalar());
-            if (count == 0)
-            {
-                new SQLiteCommand("INSERT INTO Companies (Name) VALUES ('Бесхозный')", _hydrantsConnection).ExecuteNonQuery();
-                new SQLiteCommand("INSERT INTO Companies (Name) VALUES ('Горводоканал')", _hydrantsConnection).ExecuteNonQuery();
-            }
-
-            _hydrantsConnection.Close();
-        }
-
         #endregion
 
         #region Управление соединениями
@@ -127,20 +94,7 @@ namespace ZoneHydrantEditor.Helpers
                 _zonesConnection.Close();
         }
 
-        public void OpenHydrantsConnection()
-        {
-            if (_hydrantsConnection.State != ConnectionState.Open)
-                _hydrantsConnection.Open();
-        }
-
-        public void CloseHydrantsConnection()
-        {
-            if (_hydrantsConnection.State != ConnectionState.Closed)
-                _hydrantsConnection.Close();
-        }
-
         public SQLiteConnection GetZonesConnection() => _zonesConnection;
-        public SQLiteConnection GetHydrantsConnection() => _hydrantsConnection;
 
         #endregion
 
@@ -466,76 +420,6 @@ namespace ZoneHydrantEditor.Helpers
             }
 
             return zones;
-        }
-
-        #endregion
-
-        #region Работа с принадлежностями
-
-        public List<_05Organization> GetAllCompanies()
-        {
-            var companies = new List<_05Organization>();
-
-            try
-            {
-                OpenHydrantsConnection();
-
-                var cmd = new SQLiteCommand(
-                    "SELECT Id, Name FROM Companies ORDER BY Name",
-                    _hydrantsConnection);
-
-                using var reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    companies.Add(new _05Organization
-                    {
-                        OrganizationId = reader.GetInt32(0).ToString(),
-                        OrganizationNameShort = reader.GetString(1)
-                    });
-                }
-            }
-            finally
-            {
-                CloseHydrantsConnection();
-            }
-
-            return companies;
-        }
-
-        public void AddCompany(string name)
-        {
-            try
-            {
-                OpenHydrantsConnection();
-
-                var cmd = new SQLiteCommand(
-                    "INSERT INTO Companies (Name) VALUES (@name)",
-                    _hydrantsConnection);
-                cmd.Parameters.AddWithValue("@name", name);
-                cmd.ExecuteNonQuery();
-            }
-            finally
-            {
-                CloseHydrantsConnection();
-            }
-        }
-
-        public void DeleteCompany(int id)
-        {
-            try
-            {
-                OpenHydrantsConnection();
-
-                var cmd = new SQLiteCommand(
-                    "DELETE FROM Companies WHERE Id = @id",
-                    _hydrantsConnection);
-                cmd.Parameters.AddWithValue("@id", id);
-                cmd.ExecuteNonQuery();
-            }
-            finally
-            {
-                CloseHydrantsConnection();
-            }
         }
 
         #endregion

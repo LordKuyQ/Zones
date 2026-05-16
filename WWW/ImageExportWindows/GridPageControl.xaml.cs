@@ -1,4 +1,5 @@
-﻿using GMap.NET;
+using System;
+using GMap.NET;
 using GMap.NET.WindowsPresentation;
 using System.Windows;
 using System.Windows.Controls;
@@ -105,11 +106,11 @@ namespace ZoneHydrantEditor
                 miniMap.Position = new PointLatLng(cell.Latitude, cell.Longitude);
                 miniMap.Zoom = 16;
                 miniMap.Markers.Add(CreateMiniMapMarker(cell));
-                if (!string.IsNullOrEmpty(cell.EwsPriviazka))
+                double bindingLat = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoX);
+                double bindingLng = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoY);
+                if (bindingLat != 0 || bindingLng != 0)
                 {
-                    var coord = Utility.ParseBindingCoord(cell.EwsPriviazka);
-                    if (coord != null)
-                        miniMap.Markers.Add(CreateMiniMapBinding(coord.Value.lat, coord.Value.lng, cell.EwsId));
+                    miniMap.Markers.Add(CreateMiniMapBinding(bindingLat, bindingLng, cell.EwsId));
                 }
             };
 
@@ -171,42 +172,50 @@ namespace ZoneHydrantEditor
             canvas.Children.Add(new Line { X1 = cx, Y1 = cy - arm, X2 = cx, Y2 = cy + arm, Stroke = Brushes.Black, StrokeThickness = 2, SnapsToDevicePixels = true });
             canvas.Children.Add(new Line { X1 = cx - arm, Y1 = cy, X2 = cx + arm, Y2 = cy, Stroke = Brushes.Black, StrokeThickness = 2, SnapsToDevicePixels = true });
 
-            if (!string.IsNullOrEmpty(cell.EwsPriviazka))
+            double bindingLat = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoX);
+            double bindingLng = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoY);
+            if (bindingLat != 0 || bindingLng != 0)
             {
-                var coord = Utility.ParseBindingCoord(cell.EwsPriviazka);
-                if (coord != null)
-                {
-                    canvas.Children.Add(new Rectangle { Width = 6, Height = 6, Fill = Brushes.Black, Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true });
-                    Canvas.SetLeft(canvas.Children[^1], cx - 3);
-                    Canvas.SetTop(canvas.Children[^1], cy - 3);
+                canvas.Children.Add(new Rectangle { Width = 6, Height = 6, Fill = Brushes.Black, Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true });
+                Canvas.SetLeft(canvas.Children[^1], cx - 3);
+                Canvas.SetTop(canvas.Children[^1], cy - 3);
 
-                    double offsetX = Math.Max(-arm, Math.Min(arm, -Utility.ParseBindingDistance(cell.EwsPriviazkaGeoY) * 0.05));
-                    double offsetY = Math.Max(-arm, Math.Min(arm, Utility.ParseBindingDistance(cell.EwsPriviazkaGeoX) * 0.05));
+                double dLat = bindingLat - cell.Latitude;
+                double dLng = bindingLng - cell.Longitude;
+                double distLat = dLat * 111320.0;
+                double distLng = dLng * 111320.0 * Math.Cos(cell.Latitude * Math.PI / 180.0);
 
-                    var dot = new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(Color.FromRgb(15, 11, 227)), Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true };
-                    Canvas.SetLeft(dot, cx + offsetX - 3);
-                    Canvas.SetTop(dot, cy + offsetY - 3);
-                    canvas.Children.Add(dot);
+                double offsetX = Math.Max(-arm, Math.Min(arm, -distLng * 0.05));
+                double offsetY = Math.Max(-arm, Math.Min(arm, distLat * 0.05));
 
-                    AddDistanceInfo(canvas, cell, cx, cy, arm);
-                }
+                var dot = new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(Color.FromRgb(15, 11, 227)), Stroke = Brushes.White, StrokeThickness = 1, SnapsToDevicePixels = true };
+                Canvas.SetLeft(dot, cx + offsetX - 3);
+                Canvas.SetTop(dot, cy + offsetY - 3);
+                canvas.Children.Add(dot);
+
+                AddDistanceInfo(canvas, cell, cx, cy, arm);
             }
             return canvas;
         }
 
         private static void AddDistanceInfo(Canvas canvas, GridCellData cell, double cx, double cy, double arm)
         {
-            double dx = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoX);
-            double dy = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoY);
+            double bindingLat = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoX);
+            double bindingLng = Utility.ParseBindingDistance(cell.EwsPriviazkaGeoY);
 
-            AddDistanceText(canvas, Math.Abs(dx), cx - 8, dx > 0 ? cy + arm + 2 : cy - arm - 12);
-            AddDistanceText(canvas, Math.Abs(dy), dy > 0 ? cx - arm - 20 : cx + arm + 2, cy - 8);
+            double dLat = bindingLat - cell.Latitude;
+            double dLng = bindingLng - cell.Longitude;
+            double distLat = dLat * 111320.0;
+            double distLng = dLng * 111320.0 * Math.Cos(cell.Latitude * Math.PI / 180.0);
 
-            if (dx > 0) AddArrow(canvas, new[] { new Point(cx - 3, cy + arm - 2), new Point(cx + 3, cy + arm - 2), new Point(cx, cy + arm + 2) });
-            else if (dx < 0) AddArrow(canvas, new[] { new Point(cx - 3, cy - arm + 2), new Point(cx + 3, cy - arm + 2), new Point(cx, cy - arm - 2) });
+            AddDistanceText(canvas, Math.Abs(distLat), cx - 8, distLat > 0 ? cy + arm + 2 : cy - arm - 12);
+            AddDistanceText(canvas, Math.Abs(distLng), distLng > 0 ? cx - arm - 20 : cx + arm + 2, cy - 8);
 
-            if (dy > 0) AddArrow(canvas, new[] { new Point(cx - arm + 2, cy - 3), new Point(cx - arm + 2, cy + 3), new Point(cx - arm - 2, cy) });
-            else if (dy < 0) AddArrow(canvas, new[] { new Point(cx + arm - 2, cy - 3), new Point(cx + arm - 2, cy + 3), new Point(cx + arm + 2, cy) });
+            if (distLat > 0) AddArrow(canvas, new[] { new Point(cx - 3, cy + arm - 2), new Point(cx + 3, cy + arm - 2), new Point(cx, cy + arm + 2) });
+            else if (distLat < 0) AddArrow(canvas, new[] { new Point(cx - 3, cy - arm + 2), new Point(cx + 3, cy - arm + 2), new Point(cx, cy - arm - 2) });
+
+            if (distLng > 0) AddArrow(canvas, new[] { new Point(cx - arm + 2, cy - 3), new Point(cx - arm + 2, cy + 3), new Point(cx - arm - 2, cy) });
+            else if (distLng < 0) AddArrow(canvas, new[] { new Point(cx + arm - 2, cy - 3), new Point(cx + arm - 2, cy + 3), new Point(cx + arm + 2, cy) });
         }
 
         private static void AddDistanceText(Canvas canvas, double value, double x, double y)

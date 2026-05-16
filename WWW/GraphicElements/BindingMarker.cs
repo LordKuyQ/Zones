@@ -1,4 +1,5 @@
-﻿using System.Windows;
+using System;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -16,8 +17,10 @@ namespace ZoneHydrantEditor.GraphicElements
             double markerScale = MarkerScaling.GetMarkerScale(currentZoom);
             bool showText = MarkerScaling.ShouldShowText(currentZoom);
 
-            var coord = Utility.ParseBindingCoord(ewss.EwsPriviazka);
-            if (coord == null)
+            double bindingLat = Utility.ParseBindingDistance(ewss.EwsPriviazkaGeoX);
+            double bindingLng = Utility.ParseBindingDistance(ewss.EwsPriviazkaGeoY);
+
+            if (bindingLat == 0 && bindingLng == 0)
             {
                 var fallback = new GMapMarker(hydrantPosition)
                 {
@@ -27,12 +30,20 @@ namespace ZoneHydrantEditor.GraphicElements
                 return fallback;
             }
 
-            double dx = Utility.ParseBindingDistance(ewss.EwsPriviazkaGeoX);
-            double dy = Utility.ParseBindingDistance(ewss.EwsPriviazkaGeoY);
+            double dx = bindingLat - hydrantPosition.Lat;
+            double dy = bindingLng - hydrantPosition.Lng;
 
-            var canvas = CreateBindingCanvas(markerScale, showText, coord.Value.lat, coord.Value.lng, hydrantPosition, dx, dy, ewss.DisplayNumber, ewss.PipeInfo);
+            string hydrantNumber = ewss.DisplayNumber ?? ewss.EwsNumber ?? "Без номера";
+            string pipeInfo = ewss.PipeInfo ?? "";
+            string displayText = $"{hydrantNumber}";
+            if (!string.IsNullOrEmpty(pipeInfo))
+            {
+                displayText += $" ({pipeInfo})";
+            }
 
-            var marker = new GMapMarker(new PointLatLng(coord.Value.lat, coord.Value.lng))
+            var canvas = CreateBindingCanvas(markerScale, showText, displayText, ewss);
+
+            var marker = new GMapMarker(new PointLatLng(bindingLat, bindingLng))
             {
                 Shape = canvas,
                 Offset = new Point(-3 * markerScale, -3 * markerScale),
@@ -42,7 +53,7 @@ namespace ZoneHydrantEditor.GraphicElements
             return marker;
         }
 
-        public static GMapMarker CreateSimpleBinding(double lat, double lng, string ewsId)
+        public static GMapMarker CreateSimpleBinding(double lat, double lng, string ewsId, string hydrantNumber = "")
         {
             var canvas = new Canvas
             {
@@ -63,6 +74,23 @@ namespace ZoneHydrantEditor.GraphicElements
             Canvas.SetLeft(rectangle, 0);
             Canvas.SetTop(rectangle, 0);
             canvas.Children.Add(rectangle);
+
+            if (!string.IsNullOrEmpty(hydrantNumber))
+            {
+                var textBlock = new TextBlock
+                {
+                    Text = hydrantNumber,
+                    FontSize = 8,
+                    Foreground = Brushes.Black,
+                    Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                    Padding = new Thickness(2),
+                    IsHitTestVisible = false
+                };
+                Canvas.SetLeft(textBlock, 8);
+                Canvas.SetTop(textBlock, -10);
+                canvas.Children.Add(textBlock);
+            }
+
             var marker = new GMapMarker(new PointLatLng(lat, lng))
             {
                 Shape = canvas,
@@ -105,8 +133,7 @@ namespace ZoneHydrantEditor.GraphicElements
         }
 
         private static Canvas CreateBindingCanvas(double markerScale, bool showText,
-            double bindingLat, double bindingLng, PointLatLng hydrantPosition,
-            double dx, double dy, string number, string pipeInfo)
+            string displayText, Ewss ewss)
         {
             var canvas = new Canvas
             {
@@ -127,15 +154,14 @@ namespace ZoneHydrantEditor.GraphicElements
             Canvas.SetLeft(rectangle, 0);
             Canvas.SetTop(rectangle, 0);
             canvas.Children.Add(rectangle);
-            string hydrantName = string.IsNullOrEmpty(number) ? "Гидрант" : number;
-            if (!string.IsNullOrEmpty(pipeInfo))
-            {
-                hydrantName += $" {pipeInfo}";
-            }
+
+            string left = !string.IsNullOrEmpty(ewss.EwsPrLeft) ? ewss.EwsPrLeft : "?";
+            string right = !string.IsNullOrEmpty(ewss.EwsPrRight) ? ewss.EwsPrRight : "?";
+            string straight = !string.IsNullOrEmpty(ewss.EwsPrStright) ? ewss.EwsPrStright : "?";
 
             var textBlock = new TextBlock
             {
-                Text = $"{hydrantName}\nX: {(dx >= 0 ? "+" : "")}{dx:F0} м\nY: {(dy >= 0 ? "+" : "")}{dy:F0} м",
+                Text = $"{displayText}\n← {left} м | {straight} м | → {right} м",
                 FontSize = 10 * markerScale,
                 Foreground = Brushes.Black,
                 Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
