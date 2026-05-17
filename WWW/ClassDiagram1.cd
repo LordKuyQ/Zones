@@ -1,0 +1,593 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="NameAndType">
+  <Class Name="ZoneHydrantEditor.MainWindow" BaseTypeListCollapsed="true">
+    <Position X="24" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>zpw+aB0VgZBdF9SDxtS1Qww0xwzji6RsROQteZErB1k=</HashCode>
+      <FileName>MainWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.1" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.TitlePageDialog" BaseTypeListCollapsed="true">
+    <Position X="15" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAIQAAAAAAAAAAA=</HashCode>
+      <FileName>TitlePageDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.TitlePageData">
+    <Position X="104.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAEAACAAAgBBgAQAAAAgAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>TitlePageDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.SyncPage.SyncPageWindow" BaseTypeListCollapsed="true">
+    <Position X="6" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QgAQAAAEABAAAJAAAAAFAAQAQAAAgQAAQAAAEIAAABA=</HashCode>
+      <FileName>SyncPage\SyncPageWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.AddMarkerWindow" BaseTypeListCollapsed="true">
+    <Position X="3.75" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BTAJACAAIEAAAgRAAACIIAAAQAAAAQAGAAgAQAAgAgA=</HashCode>
+      <FileName>UserInput\AddMarkerWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.GridSaveDialog" BaseTypeListCollapsed="true">
+    <Position X="10.5" Y="13" Width="1.5" />
+    <NestedTypes>
+      <Enum Name="ZoneHydrantEditor.GridSaveDialog.SaveMode" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>UserInput\GridSaveDialog.xaml.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Enum>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AAAAACAAAEAAAAwFAgBAAAAAQAAAAQAAAABAIAJAAAA=</HashCode>
+      <FileName>UserInput\GridSaveDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.InputDialog" BaseTypeListCollapsed="true">
+    <Position X="17.25" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAgAAAAA=</HashCode>
+      <FileName>UserInput\InputDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.UserCreateDialog" BaseTypeListCollapsed="true">
+    <Position X="21.75" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAEAAAAAA=</HashCode>
+      <FileName>UserInput\UserCreateDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.UserSelectDialog" BaseTypeListCollapsed="true">
+    <Position X="1.5" Y="13" Width="1.5" />
+    <NestedTypes>
+      <Class Name="ZoneHydrantEditor.UserSelectDialog.FioDisplay" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>UserInput\UserSelectDialog.xaml.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AAgAAAAACAAAAAACAAAAAAAAAAQAAQAAAIIAAAAAAAA=</HashCode>
+      <FileName>UserInput\UserSelectDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.GridPageControl" BaseTypeListCollapsed="true">
+    <Position X="0.5" Y="2" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAABAAEAEAAAAgAhAAAACgABAABAAACAAgAAMA=</HashCode>
+      <FileName>ImageExportWindows\GridPageControl.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.OverviewCaptureWindow" BaseTypeListCollapsed="true">
+    <Position X="8.25" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAEAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAIAAAA=</HashCode>
+      <FileName>ImageExportWindows\OverviewCaptureWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.ExportProgressWindow" BaseTypeListCollapsed="true">
+    <Position X="19.5" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAACAAAAAAAAIAAAAAAIAAAAAAQAAAAAAAAAAAAAA=</HashCode>
+      <FileName>ProgressWindow\ExportProgressWindow.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.ZoneInfo">
+    <Position X="88.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AEAAAAACACAAAAAAIAAAAAAABAAAAAAAAAQAABAAABA=</HashCode>
+      <FileName>Models\ZoneInfo.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.CityDistrictsHelper">
+    <Position X="25.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAEAAAAoAgAAAAAEgACAAAIAAAAAAABEAEAAAAAAAAA=</HashCode>
+      <FileName>Helpers\CityDistrictsHelper.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.App" Collapsed="true">
+    <Position X="149.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>App.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.UserInput.BindingEditDialog" BaseTypeListCollapsed="true">
+    <Position X="12.75" Y="13" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>BBAAAAAAAAAEAAAACAABAAAAAEAAABgAAAAAAAAAAAA=</HashCode>
+      <FileName>UserInput\BindingEditDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="GridCellData">
+    <Position X="120" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QIAAAAAEgEAAAAAAAAAIAAACIAAACAAAAAAAAGAAAAA=</HashCode>
+      <FileName>UserInput\GridSaveDialog.xaml.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.GraphicElements.BindingMarker">
+    <Position X="75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAIAAAgAAAAAAACAAAAAAAAAAAAAAAAAAAAAABAAA=</HashCode>
+      <FileName>GraphicElements\BindingMarker.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.GraphicElements.HydrantContextMenu">
+    <Position X="9.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAgAAAAEAAAAAAAAAAAAA=</HashCode>
+      <FileName>GraphicElements\HydrantContextMenu.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.GraphicElements.HydrantMarker">
+    <Position X="27.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAIAACAIAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAEAA=</HashCode>
+      <FileName>GraphicElements\HydrantMarker.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.GraphicElements.MarkerScaling">
+    <Position X="59.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAAAAggEAAAAAAAAAAAAAAAAAAAAAAAAAACAAA=</HashCode>
+      <FileName>GraphicElements\MarkerScaling.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.GraphicElements.ZoneMarker">
+    <Position X="106.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAEAQAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>GraphicElements\ZoneMarker.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._000Setting">
+    <Position X="7.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAEAAAAAAAAAIACAAAAAgAAAAAABQAAAAAAAIAAAA=</HashCode>
+      <FileName>Models\_000Setting.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._00Region">
+    <Position X="30" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAEAAAAAAgAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\_00Region.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._04AdressObject">
+    <Position X="41.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAAAAAAAAAAAAAAAAAEAAAACAAAAAASAgAAAAAAAA=</HashCode>
+      <FileName>Models\_04AdressObject.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._05Organization">
+    <Position X="61.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAIAgAAAAAQAAAAAAAAAAAAAAACg=</HashCode>
+      <FileName>Models\_05Organization.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._1TerritorialFireGarrison">
+    <Position X="77.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAoAAAAAAAAAACAAAAAAAAAAAAAABA=</HashCode>
+      <FileName>Models\_1TerritorialFireGarrison.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._2FireGroup">
+    <Position X="90.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CAAAAAAAAAAEEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\_2FireGroup.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._3LocalFireGarrison">
+    <Position X="108.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CAAIAAAAAAAAAAAGAAAAAgAABAAAAQQAgAAAAAAEAAA=</HashCode>
+      <FileName>Models\_3LocalFireGarrison.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._4FireUnit">
+    <Position X="122.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAAGAAAAAAAAAAQAIBAEAAAAAIAAAAAAAAEAQA=</HashCode>
+      <FileName>Models\_4FireUnit.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._5Staff">
+    <Position X="135.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAgAAAAEAAAAAAEAAAACAIAAEACAAAA=</HashCode>
+      <FileName>Models\_5Staff.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models._6StaffUser">
+    <Position X="12" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAkAgAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\_6StaffUser.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.CEwsCheckType">
+    <Position X="111" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAEAAAA=</HashCode>
+      <FileName>Models\CEwsCheckType.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.CEwsStatus">
+    <Position X="124.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAMAAAA=</HashCode>
+      <FileName>Models\CEwsStatus.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.CEwsTrouble">
+    <Position X="138" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAEAAAAAAAAAAAAAAAgAAAIAAAAAAAAAAA=</HashCode>
+      <FileName>Models\CEwsTrouble.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.CEwsTroubleType">
+    <Position X="14.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAgAAAAAAAA=</HashCode>
+      <FileName>Models\CEwsTroubleType.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.EwsDiameter">
+    <Position X="79.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAEAAAAAAAAAAAAAAAAQAAIAAAAAAAEAAAA=</HashCode>
+      <FileName>Models\EwsDiameter.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.EwsListitem">
+    <Position X="93" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAABAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAA=</HashCode>
+      <FileName>Models\EwsListitem.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.EwsPipeType">
+    <Position X="126.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAIAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAEAAAA=</HashCode>
+      <FileName>Models\EwsPipeType.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.EwsPkdiameter">
+    <Position X="140.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAgAAAAACAAAIAAAAAAAEAAAA=</HashCode>
+      <FileName>Models\EwsPkdiameter.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.Ewss">
+    <Position X="16.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>YAIBUEBCgYAAAgBABAAqAAQEIAAAIAGhACIAAHBAAAg=</HashCode>
+      <FileName>Models\Ewss.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.EwssCheck">
+    <Position X="43.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAAAgAAAFAAAACABAACAAAgBACAAAAAAAAAACAAAAE=</HashCode>
+      <FileName>Models\EwssCheck.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.EwsType">
+    <Position X="63.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAIAAAAAAIAAAAAAAAABAAAAAAAAA=</HashCode>
+      <FileName>Models\EwsType.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.EwsValue">
+    <Position X="81.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAACAAAAAAAAAAAAAAAAAAAAAAAIAAAAgAAEAAAA=</HashCode>
+      <FileName>Models\EwsValue.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.Fio">
+    <Position X="95.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAACAAAAAAAAAAAAAIAAAKAAAAgAAAAAAEACAAAAA=</HashCode>
+      <FileName>Models\Fio.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.OwnerType">
+    <Position X="97.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AACAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAIAAAAAA=</HashCode>
+      <FileName>Models\OwnerType.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.Setting">
+    <Position X="142.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACAAAAAAAAAAIAAAAEAAAAAAAAAAACAABAQ=</HashCode>
+      <FileName>Models\Setting.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.Street">
+    <Position X="18.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAAEAAABAAECAAAAAAIAAAQAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\Street.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.StreetPrefix">
+    <Position X="32.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAABAAAAAAACA=</HashCode>
+      <FileName>Models\StreetPrefix.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.Streets1">
+    <Position X="45.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAAEAAABAAECAAAAAAIAAAQAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\Streets1.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.SwitchboardItem">
+    <Position X="66" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAABACAAAAAQAAAIAEAAAAAAAA=</HashCode>
+      <FileName>Models\SwitchboardItem.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.TableInfo">
+    <Position X="84" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAEAAAUgAAAA=</HashCode>
+      <FileName>Models\TableInfo.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.ColumnSchema">
+    <Position X="48" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAQAAAAAAAAA=</HashCode>
+      <FileName>Models\TableInfo.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.Thesauru">
+    <Position X="99.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAJAAAAAAAAAAAQAAAA=</HashCode>
+      <FileName>Models\Thesauru.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.Unit">
+    <Position X="129" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAACAAAAAAAAEAAAAAAAAAAAAAAQAAAAIEAAAAAAA=</HashCode>
+      <FileName>Models\Unit.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.UserSetting">
+    <Position X="144.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAQAAAAAAIAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\UserSetting.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.КопияEwss">
+    <Position X="147" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>YAIBEEDAgRAAAgBABBAiAIUFKAABBAGgECAAAHBQAhg=</HashCode>
+      <FileName>Models\КопияEwss.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.КопияEwssCheck">
+    <Position X="21" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAgAQAVCAAADABAAAAAAhBAAAAIAAAQAAABAAABA=</HashCode>
+      <FileName>Models\КопияEwssCheck.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.ОшибкиВставки">
+    <Position X="34.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAQAAAAAAAAAAAAAAgEAgAAAAgCAAAAAAQBAAA=</HashCode>
+      <FileName>Models\ОшибкиВставки.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TestDbApp.Models.ОшибкиСохраненияПриАвтозаменеИмен">
+    <Position X="50.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AABAAAAAAAAAAAAAAQAAAgAAAAAIAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\ОшибкиСохраненияПриАвтозаменеИмен.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.BackupPackage">
+    <Position X="52.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CAAAAAAAAAAAAAAAAAAAAAACAAABgAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\BackupPackage.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.EwssBackupData">
+    <Position X="36.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>YAIBEAAAgQAEAABABAAiAAQEIAAAAACgAAAAIGBAAAA=</HashCode>
+      <FileName>Models\BackupPackage.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.ZoneBackupData">
+    <Position X="68.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAAAAAAgAAAAAAAAAQAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\BackupPackage.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.PointLatLngBackup">
+    <Position X="113.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AQAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\BackupPackage.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.Zone">
+    <Position X="39" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\Zone.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.ZoneBackup">
+    <Position X="54.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>CAACAAACAAAAEAAAAAAAAAAAAAAAAAAAAAAAABAAAAA=</HashCode>
+      <FileName>Models\ZoneBackup.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.ZoneBackupPoint">
+    <Position X="86.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAAAEAAQAAAAAAIQAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\ZoneBackup.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Models.ZonePoint">
+    <Position X="131.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAACAEAAAAAAAAAIQAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Models\ZonePoint.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.BackupService">
+    <Position X="70.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>EAAAAAgAAAAAAAIAAAAAAgAQAAEABQgIAAAAAAACAAA=</HashCode>
+      <FileName>Helpers\BackupService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.CacheManager">
+    <Position X="102" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AIRAAAAoAAAAAACAAASABgAAABAAAAAQACAgABAIAAA=</HashCode>
+      <FileName>Helpers\CacheManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.DatabaseService">
+    <Position X="72.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>DAVQAAAoMABAEAAAAQAAAAAAABAABAAAACAAAACEEAg=</HashCode>
+      <FileName>Helpers\DatabaseHelper.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.EwsMapDataService" BaseTypeListCollapsed="true">
+    <Position X="115.5" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>DpZAAAMAVCICQFIwRFAOgAlDwAGBCAkBAAIqGdQA5AA=</HashCode>
+      <FileName>Helpers\EwsMapDataService.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.GeocodingHelper">
+    <Position X="117.75" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IAAEAAAAACAAAAAAADAAAAAAAAIBAABQAAAAAAAAAEg=</HashCode>
+      <FileName>Helpers\GeocodingHelper.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.MarkerColorHelper">
+    <Position X="57" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Helpers\MarkerColorHepler.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.MBTilesProvider">
+    <Position X="15.5" Y="16.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AEACMAIAFKCAACAKIIAABgQs4JQAAAAARAQBCADRJCA=</HashCode>
+      <FileName>Helpers\MBTilesProvider.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.RoutingService">
+    <Position X="133.5" Y="1.75" Width="1.5" />
+    <NestedTypes>
+      <Class Name="ZoneHydrantEditor.Helpers.RoutingService.RouteBuiltEventArgs" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Helpers\RoutingService.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>AAgAAEAgAAABAFAgCAACAAABAAABIAAAEBAAggAiAAA=</HashCode>
+      <FileName>Helpers\RoutingService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ZoneHydrantEditor.Helpers.Utility">
+    <Position X="23.25" Y="1.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAACAgAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Helpers\Utility.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="System.Windows.Window" Collapsed="true">
+    <Position X="12.75" Y="11.5" Width="1.5" />
+    <TypeIdentifier />
+  </Class>
+  <Class Name="System.Object" Collapsed="true">
+    <Position X="77.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier />
+  </Class>
+  <Class Name="System.Windows.Controls.UserControl" Collapsed="true">
+    <Position X="0.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier />
+  </Class>
+  <Class Name="GMap.NET.MapProviders.GMapProvider" Collapsed="true">
+    <Position X="15.5" Y="15.5" Width="1.5" />
+    <TypeIdentifier />
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

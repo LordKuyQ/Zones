@@ -5,13 +5,14 @@ namespace TestDbApp.Models;
 
 public partial class КопияEwss
 {
+    public string? EwsArchiveId { get; set; }
     public string? EwsMapId { get; set; }
 
     public string? EwsCityMunicipalityOfRegionCod { get; set; }
 
     public string? EwsUnitCod { get; set; }
 
-    public string? EwsId { get; set; }
+    public string? EwsCod { get; set; }
 
     public string? EwsDistrictCod { get; set; }
 

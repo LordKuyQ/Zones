@@ -163,6 +163,8 @@ namespace ZoneHydrantEditor
             map.MapProvider = MBTilesProvider.Instance;
             map.Manager.Mode = AccessMode.ServerAndCache;
             map.Position = new PointLatLng(lat, lng);
+            map.LevelsKeepInMemory = 20;
+            map.RetryLoadTile = 0;
             map.OnMapDrag += () =>
             {
                 if (map == ZoneMap)

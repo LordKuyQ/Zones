@@ -14,13 +14,17 @@ namespace ZoneHydrantEditor.Helpers
         public static readonly MBTilesProvider Instance;
         private SQLiteConnection _connection;
         private readonly object _lockObject = new();
-        private readonly object _loadLock = new ();
+        private readonly object _loadLock = new();
         private string _currentFilePath;
         private bool _isLoading = false;
 
         // Многоуровневый кэш: zoom -> (key -> image)
         private readonly Dictionary<int, ConcurrentDictionary<string, BitmapImage>> _multiZoomCache = [];
         private readonly object _multiCacheLock = new();
+
+        // Кэш сырых байт (храним byte[] вместо BitmapImage — быстрее и меньше памяти)
+        private readonly ConcurrentDictionary<string, byte[]> _rawTileCache = new();
+        private readonly int _maxRawCacheSize = 3000;
 
         // Кэш последних использованных тайлов
         private readonly ConcurrentDictionary<string, BitmapImage> _recentCache = new();
@@ -113,6 +117,20 @@ namespace ZoneHydrantEditor.Helpers
                     _connection = new SQLiteConnection($"Data Source={filePath};Read Only=True;");
                     _connection.Open();
 
+                    // PRAGMA-оптимизации для скорости чтения
+                    using (var pragma = _connection.CreateCommand())
+                    {
+                        pragma.CommandText = @"
+                            PRAGMA synchronous=OFF;
+                            PRAGMA cache_size=-65536;
+                            PRAGMA mmap_size=268435456;
+                            PRAGMA journal_mode=OFF;
+                            PRAGMA query_only=ON;
+                            PRAGMA temp_store=MEMORY;
+                            PRAGMA page_size=4096;";
+                        pragma.ExecuteNonQuery();
+                    }
+
                     _currentFilePath = filePath;
 
                     // Загружаем метаданные
@@ -164,6 +182,7 @@ namespace ZoneHydrantEditor.Helpers
                 _multiZoomCache.Clear();
             }
 
+            _rawTileCache.Clear();
             _recentCache.Clear();
             _recentCacheOrder.Clear();
             _totalCacheHits = 0;
@@ -202,14 +221,21 @@ namespace ZoneHydrantEditor.Helpers
             {
                 string cacheKey = $"{zoom}_{pos.X}_{pos.Y}";
 
-                // 1. Проверяем кэш последних использованных
+                // 1. Проверяем кэш сырых байт (самый быстрый)
+                if (_rawTileCache.TryGetValue(cacheKey, out byte[] rawData))
+                {
+                    System.Threading.Interlocked.Increment(ref _totalCacheHits);
+                    return CreatePureImageFromBytes(rawData);
+                }
+
+                // 2. Проверяем кэш последних использованных
                 if (_recentCache.TryGetValue(cacheKey, out BitmapImage recentImage))
                 {
                     System.Threading.Interlocked.Increment(ref _totalCacheHits);
                     return CreatePureImageFromBitmap(recentImage);
                 }
 
-                // 2. Проверяем многоуровневый кэш
+                // 3. Проверяем многоуровневый кэш
                 lock (_multiCacheLock)
                 {
                     if (_multiZoomCache.TryGetValue(zoom, out var zoomCache) &&
@@ -223,27 +249,30 @@ namespace ZoneHydrantEditor.Helpers
 
                 System.Threading.Interlocked.Increment(ref _totalCacheMisses);
 
-                // 3. Загружаем из БД
-                BitmapImage image = LoadTileFromDatabase(pos, zoom);
+                // 4. Загружаем из БД
+                byte[] tileData = LoadTileBytesFromDatabase(pos, zoom);
 
-                if (image != null)
+                if (tileData != null)
                 {
-                    // Сохраняем в кэши
+                    // Сохраняем raw-байты в кэш
+                    if (_rawTileCache.Count < _maxRawCacheSize)
+                        _rawTileCache[cacheKey] = tileData;
+
+                    BitmapImage image = LoadBitmapImage(tileData);
+
                     lock (_multiCacheLock)
                     {
                         if (!_multiZoomCache.ContainsKey(zoom))
                             _multiZoomCache[zoom] = new ConcurrentDictionary<string, BitmapImage>();
-
                         if (_multiZoomCache[zoom].Count < 1000)
-                        {
                             _multiZoomCache[zoom][cacheKey] = image;
-                        }
                     }
 
                     AddToRecentCache(cacheKey, image);
+                    return CreatePureImageFromBitmap(image);
                 }
 
-                return image != null ? CreatePureImageFromBitmap(image) : null;
+                return null;
             }
             catch (Exception ex)
             {
@@ -270,23 +299,14 @@ namespace ZoneHydrantEditor.Helpers
             }
         }
 
-        private BitmapImage LoadTileFromDatabase(GPoint pos, int zoom)
+        private byte[] LoadTileBytesFromDatabase(GPoint pos, int zoom)
         {
-            // Преобразование координат TMS -> Google
             long tmsY = (1L << zoom) - 1 - pos.Y;
 
-            // Пробуем современный формат (таблица tiles)
             byte[] tileData = GetTileFromTilesTable(zoom, (int)pos.X, (int)tmsY);
-
-            // Если не нашли, пробуем старый формат (таблицы map и images)
             tileData ??= GetTileFromOldFormat(zoom, (int)pos.X, (int)tmsY);
 
-            if (tileData != null && tileData.Length > 0)
-            {
-                return LoadBitmapImage(tileData);
-            }
-
-            return null;
+            return tileData;
         }
 
         private byte[] GetTileFromTilesTable(int zoom, int x, int y)
@@ -385,6 +405,16 @@ namespace ZoneHydrantEditor.Helpers
                 Data = stream
             };
 
+            return pureImage;
+        }
+
+        private static PureImage CreatePureImageFromBytes(byte[] imageData)
+        {
+            var stream = new MemoryStream(imageData, writable: false);
+            var pureImage = new GMapImage
+            {
+                Data = stream
+            };
             return pureImage;
         }
 

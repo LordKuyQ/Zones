@@ -68,8 +68,8 @@
                                 <StackPanel>
                                     <Border Background="#E8E8E8" CornerRadius="6" Padding="5" Margin="5" BorderBrush="#1E1E1E" BorderThickness="2">
                                         <StackPanel>
-                                            <TextBlock Text="Базовые действия" FontSize="14" FontWeight="SemiBold" Foreground="#1E1E1E" Margin="5"/>
-                                            <TextBlock Text="• Нажмите 'E' для входа в режим редактирования (расставляйте посследовательно по часовой стрелке, ни в коем случае не крест-на-крест)" TextWrapping="Wrap"  FontSize="12" Foreground="#333"/>
+                                            <TextBlock Text="Горячие клавиши" FontSize="14" FontWeight="SemiBold" Foreground="#1E1E1E" Margin="5"/>
+                                            <TextBlock Text="• Нажмите 'E' для входа в режим редактирования (расставляйте точки посследовательно по часовой стрелке, ни в коем случае не крест-на-крест)" TextWrapping="Wrap"  FontSize="12" Foreground="#333"/>
                                             <TextBlock Text="• ЛКМ по карте — добавить точку" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
                                             <TextBlock Text="• Для перемещения точки удерживайте ЛКМ на точке и переместите" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
                                             <TextBlock Text="• Для удаления точки нажмите ПКМ на точке" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
@@ -82,7 +82,17 @@
                                             <TextBlock Text="Управление зонами" FontSize="14" FontWeight="SemiBold" Foreground="#1E1E1E" Margin="5"/>
                                             <TextBlock Text="• Для создания нового общего плана нажмите '+'" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
                                             <TextBlock Text="• Для переименования зоны общего плана нажмите '✏️'" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
-                                            <TextBlock Text="• Для редактирования зоны общего плана нажмите кнопку E, после чего вы можете расставить точки зоны, или же перенести существующие" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
+                                            <TextBlock Text="• После - сохраните зоны общего плана" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
+
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="#FEF7E0" CornerRadius="5" Padding="5" Margin="5" BorderBrush="#1E1E1E" BorderThickness="2">
+                                        <StackPanel>
+                                            <TextBlock Text="Создание физических карт" FontSize="14" FontWeight="SemiBold" Foreground="#1E1E1E" Margin="5"/>
+                                            <TextBlock Text="• Для создания карт общих планов нажмите кнопку 'Сохранить все общие планы(PNG)'" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
+                                            <TextBlock Text="• Далее откроется окно контроля. Внимательно следите за картой.В случае непрорисовки - ожидайте, или если ошибка не исчезла, то нажмите кнопку 'Повторить'" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
+                                            <TextBlock Text="• После вы сможете использовать эти карты для создания документации на вкладке 'Список гидрантов'" TextWrapping="Wrap" FontSize="12" Foreground="#333"/>
+
                                         </StackPanel>
                                     </Border>
 

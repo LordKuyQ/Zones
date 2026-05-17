@@ -421,6 +421,8 @@ namespace ZoneHydrantEditor.Helpers
             AddIfMissing("EWS_Type_COD", "TEXT");
             AddIfMissing("ChangeDate", "TEXT");
             AddIfMissing("ChangeDescription", "TEXT");
+            AddIfMissing("EWS_Archive_ID", "TEXT");
+            AddIfMissing("EWS_COD", "TEXT");
 
             foreach (var sql in missing)
             {
@@ -455,6 +457,25 @@ namespace ZoneHydrantEditor.Helpers
                 else if (string.Equals(dbCol, "ChangeDescription", StringComparison.OrdinalIgnoreCase))
                 {
                     value = changeDescription;
+                    found = true;
+                }
+                else if (string.Equals(dbCol, "EWS_Archive_ID", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(dbCol, "EWS_ArchiveId", StringComparison.OrdinalIgnoreCase))
+                {
+                    var allCopy = GetAllCopyEwss();
+                    int maxId = 0;
+                    foreach (var c in allCopy)
+                    {
+                        if (int.TryParse(c.EwsArchiveId, out int id) && id > maxId)
+                            maxId = id;
+                    }
+                    value = (maxId + 1).ToString();
+                    found = true;
+                }
+                else if (string.Equals(dbCol, "EWS_COD", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(dbCol, "EWS_Cod", StringComparison.OrdinalIgnoreCase))
+                {
+                    value = oldEwss.EwsId;
                     found = true;
                 }
                 else
@@ -530,7 +551,7 @@ namespace ZoneHydrantEditor.Helpers
 
             if (!string.IsNullOrWhiteSpace(searchPg))
             {
-                sql.Append(" AND (EWS_ID LIKE @search OR EWS_Number LIKE @search)");
+                sql.Append(" AND (EWS_COD LIKE @search OR EWS_Number LIKE @search)");
                 args["@search"] = $"%{searchPg}%";
             }
             if (!string.IsNullOrWhiteSpace(dateFrom))
@@ -540,8 +561,11 @@ namespace ZoneHydrantEditor.Helpers
             }
             if (!string.IsNullOrWhiteSpace(dateTo))
             {
-                sql.Append(" AND ChangeDate <= @dateTo");
-                args["@dateTo"] = dateTo;
+                sql.Append(" AND ChangeDate < @nextDay");
+                if (DateTime.TryParse(dateTo, out var dt))
+                    args["@nextDay"] = dt.AddDays(1).ToString("yyyy-MM-dd");
+                else
+                    args["@nextDay"] = dateTo;
             }
 
             sql.Append(" ORDER BY ChangeDate DESC LIMIT @limit OFFSET @offset");
@@ -594,8 +618,11 @@ namespace ZoneHydrantEditor.Helpers
             }
             if (!string.IsNullOrWhiteSpace(dateTo))
             {
-                sql.Append(" AND Check_Date <= @dateTo");
-                args["@dateTo"] = dateTo;
+                sql.Append(" AND Check_Date < @nextDay");
+                if (DateTime.TryParse(dateTo, out var dt))
+                    args["@nextDay"] = dt.AddDays(1).ToString("yyyy-MM-dd");
+                else
+                    args["@nextDay"] = dateTo;
             }
 
             sql.Append(" ORDER BY Check_Date DESC LIMIT @limit OFFSET @offset");
